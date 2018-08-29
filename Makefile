@@ -6,6 +6,9 @@ bin/invoicer: $(SRC)
 bin/linux-arm/invoicer:  $(SRC)
 	env GOOS=linux GOARCH=arm GOARM=5 go build -o $@
 
+bin/linux-amd64/invoicer:  $(SRC)
+	env GOOS=linux GOARCH=amd64 go build -o $@
+
 run: $(SRC)
 	go run main.go
 
