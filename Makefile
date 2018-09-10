@@ -9,8 +9,13 @@ bin/invoicer-linux-arm:  $(SRC)
 bin/invoicer-linux-amd64:  $(SRC)
 	env GOOS=linux GOARCH=amd64 go build -o $@
 
+bin/invoicer-darwin:  $(SRC)
+	env GOOS=darwin GOARCH=amd64 go build -o $@
+
 run: $(SRC)
 	go run main.go
+
+all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
 
 REMOTE_USER=root
 REMOTE_HOST=pi-other
@@ -21,4 +26,4 @@ deploy: bin/invoicer-linux-arm
 clean:
 	rm -rf bin/*
 
-.PHONY: run deploy clean
+.PHONY: run all deploy clean
