@@ -3,10 +3,10 @@ SRC := $(shell find . -type f -name '*.go')
 bin/invoicer: $(SRC)
 	go build -o $@
 
-bin/linux-arm/invoicer:  $(SRC)
+bin/invoicer-linux-arm:  $(SRC)
 	env GOOS=linux GOARCH=arm GOARM=5 go build -o $@
 
-bin/linux-amd64/invoicer:  $(SRC)
+bin/invoicer-linux-amd64:  $(SRC)
 	env GOOS=linux GOARCH=amd64 go build -o $@
 
 run: $(SRC)
@@ -15,7 +15,7 @@ run: $(SRC)
 REMOTE_USER=root
 REMOTE_HOST=pi-other
 REMOTE_DIR=/home/lnd/bin/
-deploy: bin/linux-arm/invoicer
+deploy: bin/invoicer-linux-arm
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
 clean:
