@@ -44,9 +44,10 @@ func (s Status) IsExpired() bool {
 }
 
 var (
-	accounts    gin.Accounts
-	network     = "testnet"
-	lncliBinary *string
+	lncliBinary = flag.String("lncli-binary", "/usr/local/bin/lncli", "Specify custom path to lncli binary")
+
+	accounts gin.Accounts
+	network  = "testnet"
 )
 
 func init() {
@@ -55,9 +56,11 @@ func init() {
 		network = "mainnet"
 	}
 
-	lncliBinary = flag.String("lncli-binary", "/usr/local/bin/lncli", "Specify custom path to lncli binary")
-
 	usersFile := flag.String("users-file", defaultUsersFile, "")
+
+	flag.Parse()
+
+	fmt.Printf(" binary:\t%s\nmainnet:\t%t\n  users:\t%s\n\n", *lncliBinary, *mainnet, *usersFile)
 
 	f, err := os.Open(*usersFile)
 	if err != nil {
