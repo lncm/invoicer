@@ -43,9 +43,20 @@ func (s Status) IsExpired() bool {
 	return time.Now().After(time.Unix(s.Ts+s.Expiry, 0))
 }
 
-var accounts gin.Accounts
+var (
+	accounts    gin.Accounts
+	network     = "testnet"
+	lncliBinary *string
+)
 
 func init() {
+	mainnet := flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
+	if *mainnet {
+		network = "mainnet"
+	}
+
+	lncliBinary = flag.String("lncli-binary", "/usr/local/bin/lncli", "Specify custom path to lncli binary")
+
 	usersFile := flag.String("users-file", defaultUsersFile, "")
 
 	f, err := os.Open(*usersFile)
@@ -83,8 +94,8 @@ func init() {
 
 func getInvoice(amount float64, desc string) (invoice Invoice, err error) {
 	cmd := exec.Command(
-		"/usr/local/bin/lncli", // TODO: detect lncli path in `init()`
-		"-n=testnet",
+		*lncliBinary,
+		fmt.Sprintf("--network=%s", network),
 		"addinvoice",
 		fmt.Sprintf("--expiry=%d", invoiceExpiry), // TODO: allow for custom expiry on invoices
 		fmt.Sprintf("--memo=%s", desc),            // TODO: sanitize `desc` better
@@ -112,8 +123,8 @@ func getInvoice(amount float64, desc string) (invoice Invoice, err error) {
 
 func getStatus(hash string) (s Status, err error) {
 	cmd := exec.Command(
-		"/usr/local/bin/lncli",
-		"-n=testnet",
+		*lncliBinary,
+		fmt.Sprintf("--network=%s", network),
 		"lookupinvoice",
 		hash,
 	)
@@ -137,8 +148,8 @@ func getStatus(hash string) (s Status, err error) {
 
 func getInfo() (info Info, err error) {
 	cmd := exec.Command(
-		"/usr/local/bin/lncli",
-		"-n=testnet",
+		*lncliBinary,
+		fmt.Sprintf("--network=%s", network),
 		"getinfo",
 	)
 
