@@ -44,21 +44,20 @@ func (s Status) IsExpired() bool {
 }
 
 var (
+	usersFile   = flag.String("users-file", defaultUsersFile, "path to a file with acceptable user passwords")
 	lncliBinary = flag.String("lncli-binary", "/usr/local/bin/lncli", "Specify custom path to lncli binary")
+	mainnet     = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
 
 	accounts gin.Accounts
 	network  = "testnet"
 )
 
 func init() {
-	mainnet := flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
+	flag.Parse()
+
 	if *mainnet {
 		network = "mainnet"
 	}
-
-	usersFile := flag.String("users-file", defaultUsersFile, "")
-
-	flag.Parse()
 
 	fmt.Printf(" binary:\t%s\nmainnet:\t%t\n  users:\t%s\n\n", *lncliBinary, *mainnet, *usersFile)
 
@@ -104,8 +103,6 @@ func getInvoice(amount float64, desc string) (invoice Invoice, err error) {
 		fmt.Sprintf("--memo=%s", desc),            // TODO: sanitize `desc` better
 		fmt.Sprintf("%d", int(amount)),
 	)
-
-	fmt.Println(cmd)
 
 	var out, err2 bytes.Buffer
 	cmd.Stdout = &out
