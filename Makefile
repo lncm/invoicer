@@ -12,10 +12,13 @@ bin/invoicer-linux-amd64:  $(SRC)
 bin/invoicer-darwin:  $(SRC)
 	env GOOS=darwin GOARCH=amd64 go build -o $@
 
+bin/invoicer-freebsd-amd64:
+	env GOOS=freebsd GOARCH=amd64 go build -o $@
+
 run: $(SRC)
 	go run main.go
 
-all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
+all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64
 
 REMOTE_USER=root
 REMOTE_HOST=pi-other
