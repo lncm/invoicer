@@ -71,10 +71,10 @@ func clightningconnstring(cmd_response string) (connstring string) {
 	info.read(cmd_response)
 	if len(info.Address) > 0 {
 		if len(info.Address) == 1 {
-				return fmt.Sprintf("%s@%s%d", info.Id, info.Address[0].Address, info.Address[0].Port)
+				return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
 		} else {
 			// TODO: Return string of addresses
-			return fmt.Sprintf("%s@%s%d", info.Id, info.Address[0].Address, info.Address[0].Port)
+			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
 		}
 	} else {
 		return fmt.Sprintf("%s", info.Id)
