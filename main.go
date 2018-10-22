@@ -241,6 +241,20 @@ func info(c *gin.Context) {
 	c.JSON(200, info.Uris)
 }
 
+
+// Initial C Lightning Function
+func clightninginfo(c *gin.Context) {
+	out, err := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
+	if err == nil {
+		c.String(200, fmt.Sprintf("%s", out))
+	} else {
+		c.JSON(500, gin.H{
+			"error": fmt.Sprintf("Error from lightning service: %s", err),
+		})
+		return
+	}
+}
+
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
@@ -250,6 +264,7 @@ func main() {
 	authorized.GET("/invoice", invoice)
 	authorized.GET("/status/:hash", status)
 	authorized.GET("/connstrings", info)
+	authorized.GET("/clightning-info", clightninginfo) // runs getinfo
 
 	r.Run(":1666")
 }
