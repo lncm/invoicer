@@ -39,28 +39,28 @@ type (
 	}
 )
 
-
 // BEGIN: Structs for Reading JSON for C lightning Files
 // Network Info
 type NetworkInfoStructure struct {
-	Type string `json: "type"`
+	Type    string `json: "type"`
 	Address string `json: "address"`
-	Port int `json: "port"`
+	Port    int    `json: "port"`
 }
 type lightningGetInfoStructure struct {
-    Id      string `json:'id'`
-    Alias        string `json:"alias"`
-		Version        string `json:"version"`
-		Network        string `json:"network"`
-		BlockHeight  int `json:"blockheight"`
-		Address []NetworkInfoStructure `json:"address"`
-		Binding []NetworkInfoStructure `json:"binding"`
+	Id          string                 `json:'id'`
+	Alias       string                 `json:"alias"`
+	Version     string                 `json:"version"`
+	Network     string                 `json:"network"`
+	BlockHeight int                    `json:"blockheight"`
+	Address     []NetworkInfoStructure `json:"address"`
+	Binding     []NetworkInfoStructure `json:"binding"`
 }
+
 // Helper function for c lightning structs
 func (resultToRead *lightningGetInfoStructure) read(json_code string) {
-    if e := json.Unmarshal([]byte(json_code), resultToRead); e != nil {
-        fmt.Printf("ERROR JSON decode: %v", e)
-    }
+	if e := json.Unmarshal([]byte(json_code), resultToRead); e != nil {
+		fmt.Printf("ERROR JSON decode: %v", e)
+	}
 }
 
 // END: Structs for Reading JSON for C lightning Files
@@ -71,7 +71,7 @@ func clightningconnstring(cmd_response string) (connstring string) {
 	info.read(cmd_response)
 	if len(info.Address) > 0 {
 		if len(info.Address) == 1 {
-				return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
+			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
 		} else {
 			// TODO: Return string of addresses
 			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
@@ -80,6 +80,7 @@ func clightningconnstring(cmd_response string) (connstring string) {
 		return fmt.Sprintf("%s", info.Id)
 	}
 }
+
 // END: Functions for C-lightning
 
 func (s Status) IsExpired() bool {
@@ -291,7 +292,6 @@ func info(c *gin.Context) {
 
 	c.JSON(200, info.Uris)
 }
-
 
 // Initial C Lightning Function
 func clightninginfo(c *gin.Context) {
