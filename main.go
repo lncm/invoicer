@@ -39,6 +39,50 @@ type (
 	}
 )
 
+// BEGIN: Structs for Reading JSON for C lightning Files
+// Network Info
+type NetworkInfoStructure struct {
+	Type    string `json: "type"`
+	Address string `json: "address"`
+	Port    int    `json: "port"`
+}
+type lightningGetInfoStructure struct {
+	Id          string                 `json:'id'`
+	Alias       string                 `json:"alias"`
+	Version     string                 `json:"version"`
+	Network     string                 `json:"network"`
+	BlockHeight int                    `json:"blockheight"`
+	Address     []NetworkInfoStructure `json:"address"`
+	Binding     []NetworkInfoStructure `json:"binding"`
+}
+
+// Helper function for c lightning structs
+func (resultToRead *lightningGetInfoStructure) read(json_code string) {
+	if e := json.Unmarshal([]byte(json_code), resultToRead); e != nil {
+		fmt.Printf("ERROR JSON decode: %v", e)
+	}
+}
+
+// END: Structs for Reading JSON for C lightning Files
+// BEGIN: Functions for C-lightning
+func clightningconnstring(cmd_response string) (connstring string) {
+	var info lightningGetInfoStructure
+
+	info.read(cmd_response)
+	if len(info.Address) > 0 {
+		if len(info.Address) == 1 {
+			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
+		} else {
+			// TODO: Return string of addresses
+			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
+		}
+	} else {
+		return fmt.Sprintf("%s", info.Id)
+	}
+}
+
+// END: Functions for C-lightning
+
 func (s Status) IsExpired() bool {
 	return time.Now().After(time.Unix(s.Ts+s.Expiry, 0))
 }
@@ -232,13 +276,34 @@ func status(c *gin.Context) {
 func info(c *gin.Context) {
 	info, err := getInfo()
 	if err != nil {
-		c.JSON(500, gin.H{
-			"error": fmt.Sprintf("Can't get info from LN node: %v", err),
-		})
-		return
+		// Try C lightning too
+		clightoutput, clighterr := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
+		connstring := clightningconnstring(fmt.Sprintf("%s", clightoutput))
+		if clighterr != nil {
+			c.JSON(500, gin.H{
+				"error": fmt.Sprintf("Can't get info from LND node: %v", err),
+			})
+			return
+		} else {
+			c.String(200, fmt.Sprintf("{\"Uris\": [\"%s\"]}", connstring))
+			return
+		}
 	}
 
 	c.JSON(200, info.Uris)
+}
+
+// Initial C Lightning Function
+func clightninginfo(c *gin.Context) {
+	out, err := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
+	if err == nil {
+		c.String(200, fmt.Sprintf("%s", out))
+	} else {
+		c.JSON(500, gin.H{
+			"error": fmt.Sprintf("Error from lightning service: %s", err),
+		})
+		return
+	}
 }
 
 func main() {
@@ -250,6 +315,7 @@ func main() {
 	authorized.GET("/invoice", invoice)
 	authorized.GET("/status/:hash", status)
 	authorized.GET("/connstrings", info)
+	authorized.GET("/clightning-info", clightninginfo) // runs getinfo
 
 	r.Run(":1666")
 }
