@@ -42,12 +42,12 @@ type (
 // BEGIN: Structs for Reading JSON for C lightning Files
 // Network Info
 type NetworkInfoStructure struct {
-	Type    string `json: "type"`
-	Address string `json: "address"`
-	Port    int    `json: "port"`
+	Type    string `json:"type"`
+	Address string `json:"address"`
+	Port    int    `json:"port"`
 }
 type lightningGetInfoStructure struct {
-	Id          string                 `json:'id'`
+	Id          string                 `json:"id"`
 	Alias       string                 `json:"alias"`
 	Version     string                 `json:"version"`
 	Network     string                 `json:"network"`
