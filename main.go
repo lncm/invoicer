@@ -2,95 +2,33 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
+	"github.com/lncm/invoicer/clightning"
+	"github.com/lncm/invoicer/common"
+	"github.com/lncm/invoicer/docker-clightning"
+	"github.com/lncm/invoicer/lnd"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const (
-	defaultUsersFile = "./users.list"
-
-	maxDescLen    = 639
-	invoiceExpiry = 180
-)
-
-type (
-	Invoice struct {
-		Hash   string `json:"r_hash"`
-		Bolt11 string `json:"pay_req"`
-	}
-
-	Status struct {
-		Ts      int64 `json:"creation_date,string"`
-		Settled bool  `json:"settled"`
-		Expiry  int64 `json:"expiry,string"`
-	}
-
-	Info struct {
-		Uris []string `json:"uris"`
-	}
-)
-
-// BEGIN: Structs for Reading JSON for C lightning Files
-// Network Info
-type NetworkInfoStructure struct {
-	Type    string `json:"type"`
-	Address string `json:"address"`
-	Port    int    `json:"port"`
-}
-type lightningGetInfoStructure struct {
-	Id          string                 `json:"id"`
-	Alias       string                 `json:"alias"`
-	Version     string                 `json:"version"`
-	Network     string                 `json:"network"`
-	BlockHeight int                    `json:"blockheight"`
-	Address     []NetworkInfoStructure `json:"address"`
-	Binding     []NetworkInfoStructure `json:"binding"`
+type LnClient interface {
+	Info() (common.Info, error)
+	Invoice(amount float64, desc string) (common.Invoice, error)
+	Status(hash string) (common.Status, error)
 }
 
-// Helper function for c lightning structs
-func (resultToRead *lightningGetInfoStructure) read(jsonCode string) {
-	if e := json.Unmarshal([]byte(jsonCode), resultToRead); e != nil {
-		fmt.Printf("ERROR JSON decode: %v", e)
-	}
-}
-
-// END: Structs for Reading JSON for C lightning Files
-// BEGIN: Functions for C-lightning
-func clightningConnstring(cmdResponse string) (connstring string) {
-	var info lightningGetInfoStructure
-
-	info.read(cmdResponse)
-	if len(info.Address) > 0 {
-		if len(info.Address) == 1 {
-			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
-		} else {
-			// TODO: Return string of addresses
-			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
-		}
-	} else {
-		return fmt.Sprintf("%s", info.Id)
-	}
-}
-
-// END: Functions for C-lightning
-
-func (s Status) IsExpired() bool {
-	return time.Now().After(time.Unix(s.Ts+s.Expiry, 0))
-}
+var client LnClient
 
 var (
-	usersFile   = flag.String("users-file", defaultUsersFile, "path to a file with acceptable user passwords")
-	lncliBinary = flag.String("lncli-binary", "/usr/local/bin/lncli", "Specify custom path to lncli binary")
-	mainnet     = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
+	usersFile = flag.String("users-file", common.DefaultUsersFile, "path to a file with acceptable user passwords")
+	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
+	lnBinary  = flag.String("ln-binary", "/usr/local/bin/lncli", "Specify custom path to the LN instance binary binary")
+	// NOTE: lncli-binary -> ln-binary & tell @AnotherDroog about this breaking change
+	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
 
 	accounts gin.Accounts
 	network  = "testnet"
@@ -103,12 +41,26 @@ func init() {
 		network = "mainnet"
 	}
 
-	fmt.Printf(" binary:\t%s\nmainnet:\t%t\n  users:\t%s\n\n", *lncliBinary, *mainnet, *usersFile)
+	switch strings.ToLower(*lnClient) {
+	case lnd.ClientName:
+		client = lnd.New(*lnBinary, network)
+
+	case cLightning.ClientName:
+		client = cLightning.New(*lnBinary, network)
+
+	case dockerCLightning.ClientName:
+		client = dockerCLightning.New(*lnBinary, network)
+
+	default:
+		panic("invalid client specified")
+	}
+
+	fmt.Printf(" binary:\t%s\nmainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *lnBinary, *mainnet, *lnClient, *usersFile)
 
 	f, err := os.Open(*usersFile)
 	if err != nil {
 		fmt.Printf("Error: list of users for Basic Authentication not found at %s\n\n", *usersFile)
-		fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", defaultUsersFile)
+		fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
 		os.Exit(1)
 	}
 
@@ -124,7 +76,7 @@ func init() {
 		if len(line) != 2 || len(line[0]) == 0 || len(line[1]) == 0 {
 			fmt.Printf("Error: can't read list of users for Basic Authentication from %s\n", *usersFile)
 			fmt.Printf("Error found in line: \"%s\"\n\n", rawLine)
-			fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", defaultUsersFile)
+			fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
 			os.Exit(1)
 		}
 
@@ -135,83 +87,6 @@ func init() {
 		fmt.Printf("Error: can't read file %s: %v", *usersFile, err)
 		os.Exit(1)
 	}
-
-}
-
-func getInvoice(amount float64, desc string) (invoice Invoice, err error) {
-	cmd := exec.Command(
-		*lncliBinary,
-		fmt.Sprintf("--network=%s", network),
-		"addinvoice",
-		fmt.Sprintf("--expiry=%d", invoiceExpiry), // TODO: allow for custom expiry on invoices
-		fmt.Sprintf("--memo=%s", desc),            // TODO: sanitize `desc` better
-		fmt.Sprintf("%d", int(amount)),
-	)
-
-	var out, err2 bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &err2
-
-	err = cmd.Run()
-	if err != nil {
-		return invoice, errors.Wrap(err, err2.String())
-	}
-
-	err = json.NewDecoder(&out).Decode(&invoice)
-	if err != nil {
-		return invoice, errors.Wrap(err, "unable to decode response")
-	}
-
-	return
-}
-
-func getStatus(hash string) (s Status, err error) {
-	cmd := exec.Command(
-		*lncliBinary,
-		fmt.Sprintf("--network=%s", network),
-		"lookupinvoice",
-		hash,
-	)
-
-	var out, err2 bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &err2
-
-	err = cmd.Run()
-	if err != nil {
-		return s, errors.Wrap(err, err2.String())
-	}
-
-	err = json.NewDecoder(&out).Decode(&s)
-	if err != nil {
-		return s, errors.Wrap(err, "unable to decode response")
-	}
-
-	return s, nil
-}
-
-func getInfo() (info Info, err error) {
-	cmd := exec.Command(
-		*lncliBinary,
-		fmt.Sprintf("--network=%s", network),
-		"getinfo",
-	)
-
-	var out, err2 bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &err2
-
-	err = cmd.Run()
-	if err != nil {
-		return info, errors.Wrap(err, err2.String())
-	}
-
-	err = json.NewDecoder(&out).Decode(&info)
-	if err != nil {
-		return info, errors.Wrap(err, "unable to decode response")
-	}
-
-	return info, nil
 }
 
 func invoice(c *gin.Context) {
@@ -225,14 +100,14 @@ func invoice(c *gin.Context) {
 	}
 
 	desc := c.DefaultQuery("desc", "")
-	if len(desc) > maxDescLen {
+	if len(desc) > common.MaxDescLen {
 		c.JSON(400, gin.H{
-			"error": fmt.Sprintf("Description too long. Max length is %d.", maxDescLen),
+			"error": fmt.Sprintf("Description too long. Max length is %d.", common.MaxDescLen),
 		})
 		return
 	}
 
-	invoice, err := getInvoice(amount, desc)
+	invoice, err := client.Invoice(amount, desc)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": fmt.Sprintf("Can't get invoice from LN node: %v", err),
@@ -249,9 +124,9 @@ func invoice(c *gin.Context) {
 func status(c *gin.Context) {
 	hash := c.Param("hash")
 
-	fin := time.Now().Add(invoiceExpiry * time.Second)
+	fin := time.Now().Add(common.DefaultInvoiceExpiry * time.Second)
 	for time.Now().Before(fin) {
-		status, err := getStatus(hash)
+		status, err := client.Status(hash)
 		if err != nil {
 			c.JSON(400, fmt.Sprintf("err: %v", err))
 			return
@@ -274,36 +149,15 @@ func status(c *gin.Context) {
 }
 
 func info(c *gin.Context) {
-	info, err := getInfo()
+	info, err := client.Info()
 	if err != nil {
-		// Try C lightning too
-		clightoutput, clighterr := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
-		connstring := clightningConnstring(fmt.Sprintf("%s", clightoutput))
-		if clighterr != nil {
-			c.JSON(500, gin.H{
-				"error": fmt.Sprintf("Can't get info from LND node: %v", err),
-			})
-			return
-		} else {
-			c.String(200, fmt.Sprintf("{\"Uris\": [\"%s\"]}", connstring))
-			return
-		}
-	}
-
-	c.JSON(200, info.Uris)
-}
-
-// Initial C Lightning Function
-func clightninginfo(c *gin.Context) {
-	out, err := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
-	if err == nil {
-		c.String(200, fmt.Sprintf("%s", out))
-	} else {
 		c.JSON(500, gin.H{
-			"error": fmt.Sprintf("Error from lightning service: %s", err),
+			"error": fmt.Sprintf("Can't get info from LN node: %v", err),
 		})
 		return
 	}
+
+	c.JSON(200, info.Uris)
 }
 
 func main() {
@@ -315,7 +169,8 @@ func main() {
 	authorized.GET("/invoice", invoice)
 	authorized.GET("/status/:hash", status)
 	authorized.GET("/connstrings", info)
-	authorized.GET("/clightning-info", clightninginfo) // runs getinfo
+
+	//authorized.GET("/clightning-info", clightningInfo) // runs getinfo
 
 	r.Run(":1666")
 }
