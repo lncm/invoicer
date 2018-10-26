@@ -57,18 +57,18 @@ type lightningGetInfoStructure struct {
 }
 
 // Helper function for c lightning structs
-func (resultToRead *lightningGetInfoStructure) read(json_code string) {
-	if e := json.Unmarshal([]byte(json_code), resultToRead); e != nil {
+func (resultToRead *lightningGetInfoStructure) read(jsonCode string) {
+	if e := json.Unmarshal([]byte(jsonCode), resultToRead); e != nil {
 		fmt.Printf("ERROR JSON decode: %v", e)
 	}
 }
 
 // END: Structs for Reading JSON for C lightning Files
 // BEGIN: Functions for C-lightning
-func clightningconnstring(cmd_response string) (connstring string) {
+func clightningConnstring(cmdResponse string) (connstring string) {
 	var info lightningGetInfoStructure
 
-	info.read(cmd_response)
+	info.read(cmdResponse)
 	if len(info.Address) > 0 {
 		if len(info.Address) == 1 {
 			return fmt.Sprintf("%s@%s:%d", info.Id, info.Address[0].Address, info.Address[0].Port)
@@ -278,7 +278,7 @@ func info(c *gin.Context) {
 	if err != nil {
 		// Try C lightning too
 		clightoutput, clighterr := exec.Command("/usr/bin/docker", "exec", "lightningpay", "lightning-cli", "getinfo").Output()
-		connstring := clightningconnstring(fmt.Sprintf("%s", clightoutput))
+		connstring := clightningConnstring(fmt.Sprintf("%s", clightoutput))
 		if clighterr != nil {
 			c.JSON(500, gin.H{
 				"error": fmt.Sprintf("Can't get info from LND node: %v", err),
