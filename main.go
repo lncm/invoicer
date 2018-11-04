@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -9,7 +8,6 @@ import (
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/docker-clightning"
 	"github.com/lncm/invoicer/lnd"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,13 +22,13 @@ type LnClient interface {
 var client LnClient
 
 var (
-	usersFile = flag.String("users-file", common.DefaultUsersFile, "path to a file with acceptable user passwords")
+	//usersFile = flag.String("users-file", common.DefaultUsersFile, "path to a file with acceptable user passwords")
 	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
 	lnBinary  = flag.String("ln-binary", "/usr/local/bin/lncli", "Specify custom path to the LN instance binary binary")
 	// NOTE: lncli-binary -> ln-binary & tell @AnotherDroog about this breaking change
 	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
 
-	accounts gin.Accounts
+	//accounts gin.Accounts
 	network  = "testnet"
 )
 
@@ -55,38 +53,39 @@ func init() {
 		panic("invalid client specified")
 	}
 
-	fmt.Printf(" binary:\t%s\nmainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *lnBinary, *mainnet, *lnClient, *usersFile)
+	//fmt.Printf(" binary:\t%s\nmainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *lnBinary, *mainnet, *lnClient, *usersFile)
+	fmt.Printf(" binary:\t%s\nmainnet:\t%t\nclient:\t%s\n\n", *lnBinary, *mainnet, *lnClient)
 
-	f, err := os.Open(*usersFile)
-	if err != nil {
-		fmt.Printf("Error: list of users for Basic Authentication not found at %s\n\n", *usersFile)
-		fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
-		os.Exit(1)
-	}
+	//f, err := os.Open(*usersFile)
+	//if err != nil {
+	//	fmt.Printf("Error: list of users for Basic Authentication not found at %s\n\n", *usersFile)
+	//	fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
+	//	os.Exit(1)
+	//}
+	//
+	//defer f.Close()
 
-	defer f.Close()
+	//accounts = make(gin.Accounts)
+	//
+	//scanner := bufio.NewScanner(f)
+	//for scanner.Scan() {
+	//	rawLine := scanner.Text()
+	//	line := strings.Split(rawLine, " ")
+	//
+	//	if len(line) != 2 || len(line[0]) == 0 || len(line[1]) == 0 {
+	//		fmt.Printf("Error: can't read list of users for Basic Authentication from %s\n", *usersFile)
+	//		fmt.Printf("Error found in line: \"%s\"\n\n", rawLine)
+	//		fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
+	//		os.Exit(1)
+	//	}
+	//
+	//	accounts[line[0]] = line[1]
+	//}
 
-	accounts = make(gin.Accounts)
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		rawLine := scanner.Text()
-		line := strings.Split(rawLine, " ")
-
-		if len(line) != 2 || len(line[0]) == 0 || len(line[1]) == 0 {
-			fmt.Printf("Error: can't read list of users for Basic Authentication from %s\n", *usersFile)
-			fmt.Printf("Error found in line: \"%s\"\n\n", rawLine)
-			fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
-			os.Exit(1)
-		}
-
-		accounts[line[0]] = line[1]
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error: can't read file %s: %v", *usersFile, err)
-		os.Exit(1)
-	}
+	//if err := scanner.Err(); err != nil {
+	//	fmt.Printf("Error: can't read file %s: %v", *usersFile, err)
+	//	os.Exit(1)
+	//}
 }
 
 func invoice(c *gin.Context) {
@@ -164,13 +163,16 @@ func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
-	authorized := r.Group("/", gin.BasicAuth(accounts))
+	r.StaticFile("/", "/home/ln/bin/index.html")
 
-	authorized.GET("/invoice", invoice)
-	authorized.GET("/status/:hash", status)
-	authorized.GET("/connstrings", info)
+	r.GET("/invoice", invoice)
+	r.GET("/status/:hash", status)
+	r.GET("/connstrings", info)
 
 	//authorized.GET("/clightning-info", clightningInfo) // runs getinfo
 
-	r.Run(":1666")
+	err := r.Run(":1666")
+	if err != nil {
+		panic(err)
+	}
 }

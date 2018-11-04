@@ -19,13 +19,14 @@ type Lnd struct {
 // TODO: change all `.Run()` to `.Output()` below
 
 func (lnd Lnd) Invoice(amount float64, desc string) (invoice common.Invoice, err error) {
+	stringAmount := fmt.Sprintf("%d", int(amount))
 	cmd := exec.Command(
 		lnd.Binary,
 		fmt.Sprintf("--network=%s", lnd.Network),
 		"addinvoice",
 		fmt.Sprintf("--expiry=%d", common.DefaultInvoiceExpiry), // TODO: allow for custom expiry on invoices
 		fmt.Sprintf("--memo=%s", desc),                          // TODO: sanitize `desc` better
-		fmt.Sprintf("%d", int(amount)),
+		stringAmount,
 	)
 
 	var out, err2 bytes.Buffer

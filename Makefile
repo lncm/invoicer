@@ -21,8 +21,8 @@ run: $(SRC)
 all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64
 
 REMOTE_USER=root
-REMOTE_HOST=pi-other
-REMOTE_DIR=/home/lnd/bin/
+REMOTE_HOST=pi-hdd
+REMOTE_DIR=/home/ln/bin/
 deploy: bin/invoicer-linux-arm
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
