@@ -3,22 +3,25 @@ SRC := $(shell find . -type f -name '*.go')
 bin/invoicer: $(SRC)
 	go build -o $@
 
-bin/invoicer-linux-arm:  $(SRC)
+bin/invoicer-linux-arm: $(SRC)
 	env GOOS=linux GOARCH=arm GOARM=5 go build -o $@
 
-bin/invoicer-linux-amd64:  $(SRC)
+bin/invoicer-linux-amd64: $(SRC)
 	env GOOS=linux GOARCH=amd64 go build -o $@
 
-bin/invoicer-darwin:  $(SRC)
+bin/invoicer-darwin: $(SRC)
 	env GOOS=darwin GOARCH=amd64 go build -o $@
 
-bin/invoicer-freebsd-amd64:
+bin/invoicer-freebsd-amd64: $(SRC)
 	env GOOS=freebsd GOARCH=amd64 go build -o $@
+
+bin/invoicer-openbsd-amd64: $(SRC)
+	env GOOS=openbsd GOARCH=amd64 go build -o $@
 
 run: $(SRC)
 	go run main.go
 
-all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64
+all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
 REMOTE_USER=root
 REMOTE_HOST=pi-hdd
