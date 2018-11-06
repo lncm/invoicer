@@ -23,11 +23,12 @@ run: $(SRC)
 
 all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
-REMOTE_USER=root
-REMOTE_HOST=pi-hdd
-REMOTE_DIR=/home/ln/bin/
-deploy: bin/invoicer-linux-arm
+REMOTE_USER ?= root
+REMOTE_HOST ?= pi-hdd
+REMOTE_DIR ?= /home/ln/bin/
+deploy: bin/invoicer-linux-arm common/index.html
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
+	rsync common/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
 clean:
 	rm -rf bin/*
