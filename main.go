@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
@@ -167,6 +168,7 @@ func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
+	r.Use(cors.Default())
 
 	if *noAuth {
 		// TODO: will it work out of _the box_ with Basic Auth
