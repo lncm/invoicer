@@ -23,6 +23,9 @@ run: $(SRC)
 
 all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
+common/index.html:
+	wget -NP common/ https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
+
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
@@ -33,4 +36,5 @@ deploy: bin/invoicer-linux-arm common/index.html
 clean:
 	rm -rf bin/*
 
-.PHONY: run all deploy clean
+.PHONY: run all deploy clean common/index.html
+
