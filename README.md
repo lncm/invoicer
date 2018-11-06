@@ -31,8 +31,19 @@ Usage
 
 [here]: https://github.com/lncm/ideas/issues/5#issuecomment-416109283
 
-
 Enjoy!
+
+Deployment
+---
+
+To deploy the binary to your Raspberry Pi, run (replacing all values with ones specific to your setup):
+
+```bash
+$ make deploy REMOTE_USER=root REMOTE_HOST=pi-hdd REMOTE_DIR=/home/ln/bin/ 
+``` 
+
+If you want to expose tips page (`common/index.html`), make sure to expose port `:1666` on your firewall. The page will be located at path root. 
+
 
 Development
 ---
