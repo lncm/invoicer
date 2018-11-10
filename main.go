@@ -11,6 +11,7 @@ import (
 	"github.com/lncm/invoicer/docker-clightning"
 	"github.com/lncm/invoicer/lnd"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -167,12 +168,17 @@ func info(c *gin.Context) {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
 	if *noAuth {
 		// TODO: will it work out of _the box_ with Basic Auth
-		r.StaticFile("/", "/home/ln/bin/index.html")
+		r.StaticFile("/", fmt.Sprintf("%s/index.html", dir))
 
 		r.GET("/invoice", invoice)
 		r.GET("/status/:hash", status)
@@ -187,7 +193,7 @@ func main() {
 
 	//authorized.GET("/clightning-info", clightningInfo) // runs getinfo
 
-	err := r.Run(":1666")
+	err = r.Run(":1666")
 	if err != nil {
 		panic(err)
 	}
