@@ -3,3 +3,7 @@
 users.list
 
 .DS_Store
+
+*.macaroon
+tls.cert
+

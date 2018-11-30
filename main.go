@@ -46,7 +46,7 @@ func init() {
 
 	switch strings.ToLower(*lnClient) {
 	case lnd.ClientName:
-		client = lnd.New(*lnBinary, network)
+		client = lnd.New()
 
 	case cLightning.ClientName:
 		client = cLightning.New(*lnBinary, network)
