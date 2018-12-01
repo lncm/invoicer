@@ -23,7 +23,11 @@ type LnClient interface {
 	Status(hash string) (common.Status, error)
 }
 
-var client LnClient
+var (
+	client  LnClient
+	version,
+	gitHash string
+)
 
 var (
 	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
@@ -60,7 +64,7 @@ func init() {
 		panic("invalid client specified")
 	}
 
-	fmt.Printf("mainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *mainnet, *lnClient, *usersFile)
+	fmt.Printf("version: %s (git: %s)\nnetwork: %s\n client: %s\n\n", version, gitHash, network, *lnClient)
 
 	if usersFile != nil && len(*usersFile) > 0 {
 		f, err := os.Open(*usersFile)
