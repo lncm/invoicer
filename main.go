@@ -30,6 +30,7 @@ var (
 	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
 
 	indexFile = flag.String("index-file", "index.html", "pass path to a default index file")
+	port      = flag.Int64("port", 1666, "specify port to serve the website & API at")
 
 	// TODO: is this necessary?
 	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
@@ -197,7 +198,7 @@ func main() {
 		panic("users.list passed, but no accounts detected")
 	}
 
-	err := r.Run(":1666")
+	err := r.Run(fmt.Sprintf(":%d", *port))
 	if err != nil {
 		panic(err)
 	}
