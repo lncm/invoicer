@@ -13,7 +13,6 @@ const ClientName = "docker-clightning"
 
 type (
 	DockerCLightning struct {
-		Binary  string
 		Network string
 	}
 
@@ -82,6 +81,6 @@ func (dockerCLightning DockerCLightning) Info() (info common.Info, err error) {
 	return info, nil
 }
 
-func New(binary, network string) DockerCLightning {
-	return DockerCLightning{binary, network}
+func New(network string) DockerCLightning {
+	return DockerCLightning{network}
 }

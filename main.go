@@ -10,8 +10,8 @@ import (
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/docker-clightning"
 	"github.com/lncm/invoicer/lnd"
+	"github.com/pkg/errors"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -26,11 +26,10 @@ type LnClient interface {
 var client LnClient
 
 var (
-	usersFile = flag.String("users-file", common.DefaultUsersFile, "path to a file with acceptable user passwords")
-	noAuth    = flag.Bool("no-auth", false, "set to make endpoint not require auth ")
+	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
 	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
-	lnBinary  = flag.String("ln-binary", "/usr/local/bin/lncli", "Specify custom path to the LN instance binary binary")
-	// NOTE: lncli-binary -> ln-binary & tell @AnotherDroog about this breaking change
+
+	// TODO: is this necessary?
 	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
 
 	accounts gin.Accounts
@@ -49,18 +48,18 @@ func init() {
 		client = lnd.New()
 
 	case cLightning.ClientName:
-		client = cLightning.New(*lnBinary, network)
+		client = cLightning.New(network)
 
 	case dockerCLightning.ClientName:
-		client = dockerCLightning.New(*lnBinary, network)
+		client = dockerCLightning.New(network)
 
 	default:
 		panic("invalid client specified")
 	}
 
-	fmt.Printf(" binary:\t%s\nmainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *lnBinary, *mainnet, *lnClient, *usersFile)
+	fmt.Printf("mainnet:\t%t\nclient:\t%s\n  users:\t%s\n\n", *mainnet, *lnClient, *usersFile)
 
-	if !*noAuth {
+	if usersFile != nil && len(*usersFile) > 0 {
 		f, err := os.Open(*usersFile)
 		if err != nil {
 			fmt.Printf("Error: list of users for Basic Authentication not found at %s\n\n", *usersFile)
@@ -68,7 +67,12 @@ func init() {
 			os.Exit(1)
 		}
 
-		defer f.Close()
+		defer func() {
+			err = f.Close()
+			if err != nil {
+				fmt.Println(errors.Wrap(err, "error closing users file"))
+			}
+		}()
 
 		accounts = make(gin.Accounts)
 
@@ -168,32 +172,35 @@ func info(c *gin.Context) {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		panic(err)
-	}
+	//dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	if *noAuth {
-		// TODO: will it work out of _the box_ with Basic Auth
-		r.StaticFile("/", fmt.Sprintf("%s/index.html", dir))
-
-		r.GET("/invoice", invoice)
-		r.GET("/status/:hash", status)
-		r.GET("/connstrings", info)
-	} else {
+	// run everything behind basic auth
+	if len(accounts) > 0 {
 		authorized := r.Group("/", gin.BasicAuth(accounts))
 
 		authorized.GET("/invoice", invoice)
 		authorized.GET("/status/:hash", status)
 		authorized.GET("/connstrings", info)
+
+		// run everything without extra auth
+	} else if len(*usersFile) == 0 {
+		r.StaticFile("/", "index.html")
+
+		r.GET("/invoice", invoice)
+		r.GET("/status/:hash", status)
+		r.GET("/connstrings", info)
+
+	} else {
+		panic("users.list passed, but no accounts detected")
 	}
 
-	//authorized.GET("/clightning-info", clightningInfo) // runs getinfo
-
-	err = r.Run(":1666")
+	err := r.Run(":1666")
 	if err != nil {
 		panic(err)
 	}

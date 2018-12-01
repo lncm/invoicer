@@ -23,13 +23,13 @@ run: $(SRC)
 
 all: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
-common/index.html:
-	wget -NP common/ https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
+index.html:
+	wget -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
 
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
-deploy: bin/invoicer-linux-arm common/index.html
+deploy: bin/invoicer-linux-arm index.html
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 	rsync common/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 

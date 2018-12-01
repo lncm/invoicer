@@ -8,7 +8,6 @@ import (
 const ClientName = "clightning"
 
 type CLightning struct {
-	Binary  string
 	Network string
 }
 
@@ -24,6 +23,6 @@ func (cLightning CLightning) Info() (info common.Info, err error) {
 	return info, errors.New("not implemented yet")
 }
 
-func New(binary, network string) CLightning {
-	return CLightning{binary, network}
+func New(network string) CLightning {
+	return CLightning{network}
 }

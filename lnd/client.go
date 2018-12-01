@@ -3,10 +3,12 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/lncm/invoicer/common"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
@@ -22,7 +24,11 @@ type Lnd struct {
 }
 
 var (
-// TODO: lnd-specific flags
+	lndHost          = flag.String("lnd-host", "localhost", "Specify hostname where your lnd is available")
+	lndPort          = flag.Int64("lnd-port", 10009, "Port on which lnd is listening")
+	tlsCert          = flag.String("lnd-tls", "tls.cert", "Specify path to tls.cert file")
+	invoiceMacaroon  = flag.String("lnd-invoice", "invoice.macaroon", "Specify path to invoice.macaroon file")
+	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
 func (lnd Lnd) Invoice(amount float64, desc string) (invoice common.Invoice, err error) {
@@ -65,7 +71,6 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 }
 
 func (lnd Lnd) Info() (info common.Info, err error) {
-	// TODO: make sure this one uses `readonly.macaroon` instead
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -73,7 +78,6 @@ func (lnd Lnd) Info() (info common.Info, err error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%#v\n", i)
 
 	return common.Info{Uris: i.Uris}, nil
 }
@@ -89,25 +93,30 @@ func getClient(creds credentials.TransportCredentials, file string) lnrpc.Lightn
 		panic(fmt.Sprintln("Cannot unmarshal macaroon", err))
 	}
 
-	connection, err := grpc.Dial("reckless.nolim1t.co:10009", []grpc.DialOption{
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	connection, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", *lndHost, *lndPort), []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBlock(),
 		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
 	}...)
 	if err != nil {
-		panic(err)
+		panic(errors.Wrapf(err, "unable to connect to %s:%d", *lndHost, *lndPort))
 	}
 
 	return lnrpc.NewLightningClient(connection)
 }
 
 func New() Lnd {
-	creds, err := credentials.NewClientTLSFromFile("tls.cert", "reckless.nolim1t.co")
+	// TODO: verify flags(?)
+	creds, err := credentials.NewClientTLSFromFile(*tlsCert, *lndHost)
 	if err != nil {
 		panic(err)
 	}
+
 	return Lnd{
-		getClient(creds, "invoice.macaroon"),
-		getClient(creds, "readonly.macaroon"),
+		getClient(creds, *invoiceMacaroon),
+		getClient(creds, *readOnlyMacaroon),
 	}
 }
