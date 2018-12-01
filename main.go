@@ -29,6 +29,8 @@ var (
 	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
 	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
 
+	indexFile = flag.String("index-file", "index.html", "pass path to a default index file")
+
 	// TODO: is this necessary?
 	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
 
@@ -190,7 +192,7 @@ func main() {
 
 		// run everything without extra auth
 	} else if len(*usersFile) == 0 {
-		r.StaticFile("/", "index.html")
+		r.StaticFile("/", *indexFile)
 
 		r.GET("/invoice", invoice)
 		r.GET("/status/:hash", status)

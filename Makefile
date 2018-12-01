@@ -31,7 +31,7 @@ REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
 deploy: bin/invoicer-linux-arm index.html
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
-	rsync common/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
+	rsync index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
 clean:
 	rm -rf bin/*
