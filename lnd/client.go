@@ -36,8 +36,9 @@ func (lnd Lnd) Invoice(amount float64, desc string) (invoice common.Invoice, err
 	defer cancel()
 
 	inv, err := lnd.InvoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
-		Memo:  desc,
-		Value: int64(amount * 1e8),
+		Memo:   desc,
+		Value:  int64(amount * 1e8),
+		Expiry: common.DefaultInvoiceExpiry,
 	})
 	if err != nil {
 		return

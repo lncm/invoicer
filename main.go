@@ -174,11 +174,6 @@ func info(c *gin.Context) {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
-	//dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	//if err != nil {
-	//	panic(err)
-	//}
-
 	r := gin.Default()
 	r.Use(cors.Default())
 
