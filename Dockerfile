@@ -8,17 +8,12 @@ ENV COIN bitcoin
 ENV NETWORK mainnet
 
 # Install dependencies and build the binaries.
-RUN apk add --no-cache --update alpine-sdk \
-    git \
-    make \
-    gcc \
-&& git config --global http.sslVerify false \
-&& git clone https://github.com/lightningnetwork/lnd /go/src/github.com/lightningnetwork/lnd \
-&& cd /go/src/github.com/lightningnetwork/lnd \
-&& make && make install \
-&&  git clone https://github.com/lncm/invoicer.git /go/src/github.com/lncm/invoicer \
-&&  cd /go/src/github.com/lncm/invoicer \
-&& make bin/invoicer-linux-arm 
+RUN apk add --no-cache --update wget
+
+RUN mkdir -p /go/bin
+WORKDIR /go/bin
+RUN wget "https://github.com/lncm/invoicer/releases/download/v0.0.11/invoicer-linux-arm" \
+    && chmod 755 invoicer-linux-arm 
 
 # Start a new, final image.
 FROM alpine as final
@@ -29,10 +24,10 @@ RUN apk --no-cache add \
     ca-certificates
 
 # Copy the binaries from the builder image.
-COPY --from=builder /go/src/github/lncm/bin/invoicer /bin/
+COPY --from=builder /go/bin/invoicer-linux-arm /bin/
 
 # Expose lnd ports (p2p, rpc).
 EXPOSE 1666
 
 # Invoicer Entrypoint
-CMD ["invoicer", "-lnd-host localhost", "-lnd-invoice $LND_DIR/data/chain/$COIN/$NETWORK/invoice.macaroon", "-lnd-readonly $LND_DIR/data/chain/$COIN/$NETWORK/readonly.macaroon", "-mainnet", "-lnd-tls $LND_DIR/tls.cert"]
+CMD ["invoicer-linux-arm", "-lnd-host localhost", "-lnd-invoice $LND_DIR/data/chain/$COIN/$NETWORK/invoice.macaroon", "-lnd-readonly $LND_DIR/data/chain/$COIN/$NETWORK/readonly.macaroon", "-mainnet", "-lnd-tls $LND_DIR/tls.cert"]
