@@ -3,6 +3,9 @@ FROM golang:alpine as builder
 # Force Go to use the cgo based DNS resolver. This is required to ensure DNS
 # queries required to connect to linked containers succeed.
 ENV GODEBUG netdns=cgo
+ENV LND_DIR /lnd
+ENV COIN bitcoin
+ENV NETWORK mainnet
 
 # Install dependencies and build the binaries.
 RUN apk add --no-cache --update alpine-sdk \
@@ -27,6 +30,5 @@ COPY --from=builder /go/src/github/lncm/bin/invoicer /bin/
 # Expose lnd ports (p2p, rpc).
 EXPOSE 1666
 
-# Specify the start command and entrypoint as the lnd daemon.
-ENTRYPOINT ["lnd"]
-CMD ["lnd"]
+# Invoicer Entrypoint
+CMD ["invoicer", "-lnd-host localhost", "-lnd-invoice $LND_DIR/data/chain/$COIN/$NETWORK/invoice.macaroon", "-lnd-readonly $LND_DIR/data/chain/$COIN/$NETWORK/readonly.macaroon", "-mainnet", "-lnd-tls $LND_DIR/tls.cert"]
