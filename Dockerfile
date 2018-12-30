@@ -12,9 +12,13 @@ RUN apk add --no-cache --update alpine-sdk \
     git \
     make \
     gcc \
+&& git config --global http.sslVerify false \
+&& git clone https://github.com/lightningnetwork/lnd /go/src/github.com/lightningnetwork/lnd \
+&& cd /go/src/github.com/lightningnetwork/lnd \
+&& make && make install \
 &&  git clone https://github.com/lncm/invoicer.git /go/src/github.com/lncm/invoicer \
 &&  cd /go/src/github.com/lncm/invoicer \
-&& make bin/invoicer 
+&& make bin/invoicer-linux-arm 
 
 # Start a new, final image.
 FROM alpine as final
