@@ -184,6 +184,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(cors.Default())
+	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	r := &router.RouterGroup
 	if len(accounts) > 0 {
