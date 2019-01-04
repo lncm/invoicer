@@ -86,7 +86,7 @@ func (lnd Lnd) Address() (address string, err error) {
 }
 
 func (lnd Lnd) Info() (info common.Info, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	i, err := lnd.ReadOnlyClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
