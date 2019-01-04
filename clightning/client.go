@@ -17,6 +17,10 @@ func (cLightning CLightning) Status(hash string) (s common.Status, err error) {
 	return s, errors.New("not implemented yet")
 }
 
+func (cLightning CLightning) Address() (address string, err error) {
+	return address, errors.New("not implemented yet")
+}
+
 func (cLightning CLightning) Info() (info common.Info, err error) {
 	return info, errors.New("not implemented yet")
 }

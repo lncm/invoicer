@@ -18,6 +18,7 @@ import (
 
 type LnClient interface {
 	Info() (common.Info, error)
+	Address() (string, error)
 	Invoice(amount float64, desc string) (common.Invoice, error)
 	Status(hash string) (common.Status, error)
 }
@@ -26,9 +27,7 @@ var (
 	client  LnClient
 	version,
 	gitHash string
-)
 
-var (
 	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
 	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
 

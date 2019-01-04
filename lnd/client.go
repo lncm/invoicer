@@ -71,6 +71,20 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 	}, nil
 }
 
+func (lnd Lnd) Address() (address string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	addrResp, err := lnd.InvoiceClient.NewAddress(ctx, &lnrpc.NewAddressRequest{
+		Type: lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH,
+	})
+	if err != nil {
+		return
+	}
+
+	return addrResp.Address, nil
+}
+
 func (lnd Lnd) Info() (info common.Info, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
