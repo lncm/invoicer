@@ -30,9 +30,10 @@ var (
 	gitHash string
 
 	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
-	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
+	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, and clightning")
 
-	indexFile = flag.String("index-file", "index.html", "pass path to a default index file")
+	indexFile = flag.String("index-file", "static/index.html", "pass path to a default index file")
+	staticDir = flag.String("static-dir", "", "pass path to a dir containing static files to be served")
 	port      = flag.Int64("port", 1666, "specify port to serve the website & API at")
 
 	accounts gin.Accounts
@@ -181,33 +182,37 @@ func info(c *gin.Context) {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
-	r := gin.Default()
-	r.Use(cors.Default())
+	router := gin.Default()
+	router.Use(cors.Default())
 
 	// merchant flow (run everything behind basic auth)
 	if len(accounts) > 0 {
-		authorized := r.Group("/", gin.BasicAuth(accounts))
+		authorized := router.Group("/", gin.BasicAuth(accounts))
 
-		authorized.GET("/invoice", invoice)
-		authorized.GET("/status/:hash", status)
-		authorized.GET("/connstrings", info)
+		authorized.GET("/payment", invoice)
+		authorized.GET("/payment/:hash", status)
+		authorized.GET("/info", info)
 
 		// donations flow (run everything without extra auth)
 	} else if len(*usersFile) == 0 {
-		r.StaticFile("/", *indexFile)
+		router.StaticFile("/", *indexFile)
 
-		r.GET("/invoice", invoice)
-		r.GET("/status/:hash", status)
-		r.GET("/info", info)
+		if *staticDir != "" {
+			router.Static("/static/", *staticDir)
+		}
+
+		router.GET("/payment", invoice)
+		router.GET("/payment/:hash", status)
+		router.GET("/info", info)
 
 		// TODO: only behind auth
-		r.GET("/history", history)
+		router.GET("/history", history)
 
 	} else {
 		panic("users.list passed, but no accounts detected")
 	}
 
-	err := r.Run(fmt.Sprintf(":%d", *port))
+	err := router.Run(fmt.Sprintf(":%d", *port))
 	if err != nil {
 		panic(err)
 	}

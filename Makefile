@@ -32,18 +32,18 @@ tag:
 
 all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
-index.html:
+static/index.html:
 	wget -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
 
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
-deploy: bin/invoicer-linux-arm index.html
+deploy: bin/invoicer-linux-arm static/index.html
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
-	rsync index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
+	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
 clean:
 	rm -rf bin/*
 
-.PHONY: run tag all deploy clean common/index.html
+.PHONY: run tag all deploy clean static/index.html
 
