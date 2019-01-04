@@ -102,7 +102,7 @@ func (lnd Lnd) History() (invoices common.Invoices, err error) {
 	defer cancel()
 
 	list, err := lnd.ReadOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
-		NumMaxInvoices: 1000,
+		NumMaxInvoices: 250,
 	})
 	if err != nil {
 		return
