@@ -33,7 +33,7 @@ tag:
 all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
 
 static/index.html:
-	wget -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
+	wget -P static -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
 
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
