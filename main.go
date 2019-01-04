@@ -51,7 +51,12 @@ func init() {
 		panic("invalid client specified")
 	}
 
-	fmt.Printf("version: %s (git: %s)\n client: %s\n\n", version, gitHash, *lnClient)
+	versionString := "debug"
+	if version != "" && gitHash != "" {
+		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
+	}
+
+	fmt.Printf("version: %s\n client: %s\n\n", versionString, *lnClient)
 
 	if usersFile != nil && len(*usersFile) > 0 {
 		f, err := os.Open(*usersFile)
@@ -169,7 +174,7 @@ func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	// run everything behind basic auth
+	// merchant flow (run everything behind basic auth)
 	if len(accounts) > 0 {
 		authorized := r.Group("/", gin.BasicAuth(accounts))
 
@@ -177,7 +182,7 @@ func main() {
 		authorized.GET("/status/:hash", status)
 		authorized.GET("/connstrings", info)
 
-		// run everything without extra auth
+		// donations flow (run everything without extra auth)
 	} else if len(*usersFile) == 0 {
 		r.StaticFile("/", *indexFile)
 
