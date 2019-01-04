@@ -19,8 +19,9 @@ import (
 type LnClient interface {
 	Info() (common.Info, error)
 	Address() (string, error)
-	Invoice(amount float64, desc string) (common.Invoice, error)
+	Invoice(amount float64, desc string) (common.NewPayment, error)
 	Status(hash string) (common.Status, error)
+	History() (common.Invoices, error)
 }
 
 var (
@@ -123,10 +124,7 @@ func invoice(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"invoice": invoice.Bolt11,
-		"hash":    invoice.Hash,
-	})
+	c.JSON(200, invoice)
 }
 
 func status(c *gin.Context) {
@@ -154,6 +152,18 @@ func status(c *gin.Context) {
 	}
 
 	c.JSON(408, "expired")
+}
+
+func history(c *gin.Context) {
+	history, err := client.History()
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
+		})
+		return
+	}
+
+	c.JSON(200, history)
 }
 
 func info(c *gin.Context) {
@@ -188,7 +198,10 @@ func main() {
 
 		r.GET("/invoice", invoice)
 		r.GET("/status/:hash", status)
-		r.GET("/connstrings", info)
+		r.GET("/info", info)
+
+		// TODO: only behind auth
+		r.GET("/history", history)
 
 	} else {
 		panic("users.list passed, but no accounts detected")
