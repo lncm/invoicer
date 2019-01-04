@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
-	"github.com/lncm/invoicer/docker-clightning"
 	"github.com/lncm/invoicer/lnd"
 	"github.com/pkg/errors"
 	"os"
@@ -36,35 +35,24 @@ var (
 	indexFile = flag.String("index-file", "index.html", "pass path to a default index file")
 	port      = flag.Int64("port", 1666, "specify port to serve the website & API at")
 
-	// TODO: is this necessary?
-	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
-
 	accounts gin.Accounts
-	network  = "testnet"
 )
 
 func init() {
 	flag.Parse()
-
-	if *mainnet {
-		network = "mainnet"
-	}
 
 	switch strings.ToLower(*lnClient) {
 	case lnd.ClientName:
 		client = lnd.New()
 
 	case cLightning.ClientName:
-		client = cLightning.New(network)
-
-	case dockerCLightning.ClientName:
-		client = dockerCLightning.New(network)
+		client = cLightning.New()
 
 	default:
 		panic("invalid client specified")
 	}
 
-	fmt.Printf("version: %s (git: %s)\nnetwork: %s\n client: %s\n\n", version, gitHash, network, *lnClient)
+	fmt.Printf("version: %s (git: %s)\n client: %s\n\n", version, gitHash, *lnClient)
 
 	if usersFile != nil && len(*usersFile) > 0 {
 		f, err := os.Open(*usersFile)

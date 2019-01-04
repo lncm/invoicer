@@ -7,9 +7,7 @@ import (
 
 const ClientName = "clightning"
 
-type CLightning struct {
-	Network string
-}
+type CLightning struct{}
 
 func (cLightning CLightning) Invoice(amount float64, desc string) (invoice common.Invoice, err error) {
 	return invoice, errors.New("not implemented yet")
@@ -23,6 +21,6 @@ func (cLightning CLightning) Info() (info common.Info, err error) {
 	return info, errors.New("not implemented yet")
 }
 
-func New(network string) CLightning {
-	return CLightning{network}
+func New() CLightning {
+	return CLightning{}
 }
