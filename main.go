@@ -185,32 +185,25 @@ func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	// merchant flow (run everything behind basic auth)
+	r := &router.RouterGroup
 	if len(accounts) > 0 {
-		authorized := router.Group("/", gin.BasicAuth(accounts))
-
-		authorized.GET("/payment", invoice)
-		authorized.GET("/payment/:hash", status)
-		authorized.GET("/info", info)
-
-		// donations flow (run everything without extra auth)
-	} else if len(*usersFile) == 0 {
-		router.StaticFile("/", *indexFile)
-
-		if *staticDir != "" {
-			router.Static("/static/", *staticDir)
-		}
-
-		router.GET("/payment", invoice)
-		router.GET("/payment/:hash", status)
-		router.GET("/info", info)
-
-		// TODO: only behind auth
-		router.GET("/history", history)
-
-	} else {
+		r = router.Group("/", gin.BasicAuth(accounts))
+	} else if len(*usersFile) != 0 {
 		panic("users.list passed, but no accounts detected")
 	}
+
+	r.StaticFile("/", *indexFile)
+
+	if *staticDir != "" {
+		r.Static("/static/", *staticDir)
+	}
+
+	r.GET("/payment", invoice)
+	r.GET("/payment/:hash", status)
+	r.GET("/info", info)
+
+	// TODO: only behind auth
+	r.GET("/history", history)
 
 	err := router.Run(fmt.Sprintf(":%d", *port))
 	if err != nil {
