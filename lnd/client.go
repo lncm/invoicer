@@ -31,7 +31,7 @@ var (
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount float64, desc string) (invoice common.Invoice, err error) {
+func (lnd Lnd) Invoice(amount float64, desc string) (_ common.NewPayment, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -44,7 +44,7 @@ func (lnd Lnd) Invoice(amount float64, desc string) (invoice common.Invoice, err
 		return
 	}
 
-	return common.Invoice{
+	return common.NewPayment{
 		Hash:   hex.EncodeToString(inv.RHash),
 		Bolt11: inv.PaymentRequest,
 	}, nil
@@ -71,8 +71,22 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 	}, nil
 }
 
+func (lnd Lnd) Address() (address string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	addrResp, err := lnd.InvoiceClient.NewAddress(ctx, &lnrpc.NewAddressRequest{
+		Type: lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH,
+	})
+	if err != nil {
+		return
+	}
+
+	return addrResp.Address, nil
+}
+
 func (lnd Lnd) Info() (info common.Info, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	i, err := lnd.ReadOnlyClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
@@ -81,6 +95,35 @@ func (lnd Lnd) Info() (info common.Info, err error) {
 	}
 
 	return common.Info{Uris: i.Uris}, nil
+}
+
+func (lnd Lnd) History() (invoices common.Invoices, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	list, err := lnd.ReadOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
+		NumMaxInvoices: 250,
+	})
+	if err != nil {
+		return
+	}
+
+	for _, inv := range list.Invoices {
+		invoices = append(invoices, common.Invoice{
+			Bolt11:      inv.PaymentRequest,
+			Description: inv.Memo,
+			Hash:        hex.EncodeToString(inv.RHash),
+			Amount:      inv.AmtPaidSat,
+			Paid:        inv.Settled,
+			PaidAt:      inv.SettleDate,
+			Expired:     inv.Expiry < time.Now().Unix(),
+			ExpireAt:    inv.CreationDate + inv.Expiry,
+		})
+	}
+
+	// TODO: optionally reverse order(?)
+
+	return
 }
 
 func getClient(creds credentials.TransportCredentials, file string) lnrpc.LightningClient {

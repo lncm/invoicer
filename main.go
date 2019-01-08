@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
-	"github.com/lncm/invoicer/docker-clightning"
 	"github.com/lncm/invoicer/lnd"
 	"github.com/pkg/errors"
 	"os"
@@ -19,52 +18,47 @@ import (
 
 type LnClient interface {
 	Info() (common.Info, error)
-	Invoice(amount float64, desc string) (common.Invoice, error)
+	Address() (string, error)
+	Invoice(amount float64, desc string) (common.NewPayment, error)
 	Status(hash string) (common.Status, error)
+	History() (common.Invoices, error)
 }
 
 var (
 	client  LnClient
 	version,
 	gitHash string
-)
 
-var (
 	usersFile = flag.String("users-file", "", "path to a file with acceptable user passwords")
-	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, clightning, docker-clightning")
+	lnClient  = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd, and clightning")
 
-	indexFile = flag.String("index-file", "index.html", "pass path to a default index file")
+	indexFile = flag.String("index-file", "static/index.html", "pass path to a default index file")
+	staticDir = flag.String("static-dir", "", "pass path to a dir containing static files to be served")
 	port      = flag.Int64("port", 1666, "specify port to serve the website & API at")
 
-	// TODO: is this necessary?
-	mainnet = flag.Bool("mainnet", false, "Set to true if this node will run on mainnet")
-
 	accounts gin.Accounts
-	network  = "testnet"
 )
 
 func init() {
 	flag.Parse()
-
-	if *mainnet {
-		network = "mainnet"
-	}
 
 	switch strings.ToLower(*lnClient) {
 	case lnd.ClientName:
 		client = lnd.New()
 
 	case cLightning.ClientName:
-		client = cLightning.New(network)
-
-	case dockerCLightning.ClientName:
-		client = dockerCLightning.New(network)
+		client = cLightning.New()
 
 	default:
 		panic("invalid client specified")
 	}
 
-	fmt.Printf("version: %s (git: %s)\nnetwork: %s\n client: %s\n\n", version, gitHash, network, *lnClient)
+	versionString := "debug"
+	if version != "" && gitHash != "" {
+		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
+	}
+
+	fmt.Printf("version: %s\n client: %s\n\n", versionString, *lnClient)
 
 	if usersFile != nil && len(*usersFile) > 0 {
 		f, err := os.Open(*usersFile)
@@ -131,10 +125,7 @@ func invoice(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"invoice": invoice.Bolt11,
-		"hash":    invoice.Hash,
-	})
+	c.JSON(200, invoice)
 }
 
 func status(c *gin.Context) {
@@ -164,6 +155,18 @@ func status(c *gin.Context) {
 	c.JSON(408, "expired")
 }
 
+func history(c *gin.Context) {
+	history, err := client.History()
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
+		})
+		return
+	}
+
+	c.JSON(200, history)
+}
+
 func info(c *gin.Context) {
 	info, err := client.Info()
 	if err != nil {
@@ -179,30 +182,31 @@ func info(c *gin.Context) {
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
-	r := gin.Default()
-	r.Use(cors.Default())
+	router := gin.Default()
+	router.Use(cors.Default())
+	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	// run everything behind basic auth
+	r := &router.RouterGroup
 	if len(accounts) > 0 {
-		authorized := r.Group("/", gin.BasicAuth(accounts))
-
-		authorized.GET("/invoice", invoice)
-		authorized.GET("/status/:hash", status)
-		authorized.GET("/connstrings", info)
-
-		// run everything without extra auth
-	} else if len(*usersFile) == 0 {
-		r.StaticFile("/", *indexFile)
-
-		r.GET("/invoice", invoice)
-		r.GET("/status/:hash", status)
-		r.GET("/connstrings", info)
-
-	} else {
+		r = router.Group("/", gin.BasicAuth(accounts))
+	} else if len(*usersFile) != 0 {
 		panic("users.list passed, but no accounts detected")
 	}
 
-	err := r.Run(fmt.Sprintf(":%d", *port))
+	r.StaticFile("/", *indexFile)
+
+	if *staticDir != "" {
+		r.Static("/static/", *staticDir)
+	}
+
+	r.GET("/payment", invoice)
+	r.GET("/payment/:hash", status)
+	r.GET("/info", info)
+
+	// TODO: only behind auth
+	r.GET("/history", history)
+
+	err := router.Run(fmt.Sprintf(":%d", *port))
 	if err != nil {
 		panic(err)
 	}
