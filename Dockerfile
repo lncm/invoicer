@@ -35,7 +35,8 @@ RUN mkdir -p /invoicer-data/static
 WORKDIR /invoicer-data
 
 # Copies index.html file into
-COPY static/index.html /invoicer-data/static.html
+COPY static/index.html /invoicer-data/static/index.html
+COPY static/index.html /invoicer-data/index.html
 
 # Copy the binaries from the builder image.
 COPY --from=builder /go/src/github.com/lncm/invoicer/bin/invoicer /bin/
