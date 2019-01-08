@@ -1,12 +1,24 @@
-FROM alpine as builder
+FROM golang:alpine as builder
 
-RUN apk add --no-cache --update wget
+ENV GODEBUG netdns=cgo
 
-RUN mkdir -p /go
-WORKDIR /go
+# Install dependencies (LND) and build/download the binaries.
+RUN apk add --no-cache --update alpine-sdk \
+    git \
+    make \
+    gcc \
+    wget
 
-RUN wget "https://github.com/lncm/invoicer/releases/download/v0.0.11/invoicer-linux-arm" \
-    && chmod 755 invoicer-linux-arm 
+RUN go get -d github.com/lncm/invoicer
+WORKDIR  /go/src/github.com/lncm/invoicer
+RUN git checkout v0.0.11
+RUN make bin/invoicer
+
+#RUN apk add --no-cache --update wget
+
+#WORKDIR /go
+#RUN wget "https://github.com/lncm/invoicer/releases/download/v0.0.11/invoicer-linux-arm" \
+#    && chmod 755 invoicer-linux-arm 
 
 # Start a new, final image.
 FROM alpine as final
@@ -26,7 +38,8 @@ WORKDIR /invoicer-data
 COPY static/index.html /invoicer-data/static.html
 
 # Copy the binaries from the builder image.
-COPY --from=builder /go/invoicer-linux-arm /bin/
+COPY --from=builder /go/src/github.com/lncm/invoicer/bin/invoicer /bin/
+
 COPY entrypoint-invoicer.sh /bin/
 
 # Expose lnd ports (p2p, rpc).
