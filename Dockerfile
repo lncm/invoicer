@@ -16,10 +16,6 @@ RUN make bin/invoicer
 
 RUN apk add --no-cache --update wget
 
-WORKDIR /go
-RUN wget "https://github.com/lncm/invoicer/releases/download/v0.0.11/invoicer-linux-arm" \
-    && chmod 755 invoicer-linux-arm 
-
 # Start a new, final image.
 FROM alpine as final
 
@@ -40,7 +36,6 @@ COPY static/index.html /invoicer-data/index.html
 
 # Copy the binaries from the builder image.
 COPY --from=builder /go/src/github.com/lncm/invoicer/bin/invoicer /bin/
-COPY --from=builder /go/invoicer-linux-arm /bin/
 
 COPY entrypoint-invoicer.sh /bin/
 
