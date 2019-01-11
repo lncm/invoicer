@@ -9,7 +9,7 @@ const ClientName = "clightning"
 
 type CLightning struct{}
 
-func (cLightning CLightning) Invoice(amount float64, desc string) (payment common.NewPayment, err error) {
+func (cLightning CLightning) Invoice(amount float64, desc string) (payment common.LnInvoice, err error) {
 	return payment, errors.New("not implemented yet")
 }
 
@@ -17,7 +17,7 @@ func (cLightning CLightning) Status(hash string) (s common.Status, err error) {
 	return s, errors.New("not implemented yet")
 }
 
-func (cLightning CLightning) Address() (address string, err error) {
+func (cLightning CLightning) Address(bool) (address string, err error) {
 	return address, errors.New("not implemented yet")
 }
 

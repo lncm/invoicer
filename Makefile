@@ -1,4 +1,4 @@
-VERSION = v0.0.11
+VERSION = v0.0.12
 
 VERSION_STAMP="main.version=$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
@@ -25,7 +25,7 @@ bin/invoicer-openbsd-amd64: $(SRC)
 	env GOOS=openbsd GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
 
 run: $(SRC)
-	go run main.go
+	GRPC_GO_RETRY=on go run main.go
 
 tag:
 	git tag -sa $(VERSION) -m "$(VERSION)"

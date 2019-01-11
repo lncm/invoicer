@@ -9,9 +9,13 @@ const (
 )
 
 type (
-	NewPayment struct {
+	LnInvoice struct {
 		Bolt11  string `json:"bolt11"`
 		Hash    string `json:"hash"`
+	}
+
+	NewPayment struct {
+		LnInvoice
 		Address string `json:"address,omitempty"`
 	}
 
@@ -19,6 +23,7 @@ type (
 		Ts      int64
 		Settled bool
 		Expiry  int64
+		Value   int64
 	}
 
 	Invoice struct {
@@ -36,6 +41,14 @@ type (
 
 	Info struct {
 		Uris []string `json:"uris"`
+	}
+
+	AddressStatus []struct {
+		Address       string   `json:"address"`
+		Amount        float64  `json:"amount"`
+		Confirmations int64    `json:"confirmations"`
+		Label         string   `json:"label"`
+		TxIds         []string `json:"txids"`
 	}
 )
 
