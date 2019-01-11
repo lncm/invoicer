@@ -294,6 +294,8 @@ func btcStatus(c *gin.Context) {
 	c.JSON(408, "expired")
 }
 
+// TODO: pagination
+// TODO: only paid
 func history(c *gin.Context) {
 	history, err := lnClient.History()
 	if err != nil {
@@ -345,7 +347,9 @@ func main() {
 	r.GET("/info", info)
 
 	// TODO: only behind auth
-	r.GET("/history", history)
+	if len(accounts) > 0 {
+		r.GET("/history", history)
+	}
 
 	err := router.Run(fmt.Sprintf(":%d", *port))
 	if err != nil {
