@@ -19,23 +19,23 @@ import (
 const ClientName = "lnd"
 
 type Lnd struct {
-	InvoiceClient  lnrpc.LightningClient
-	ReadOnlyClient lnrpc.LightningClient
+	invoiceClient  lnrpc.LightningClient
+	readOnlyClient lnrpc.LightningClient
 }
 
 var (
-	lndHost          = flag.String("lnd-host", "localhost", "Specify hostname where your lnd is available")
-	lndPort          = flag.Int64("lnd-port", 10009, "Port on which lnd is listening")
+	hostname         = flag.String("lnd-host", "localhost", "Specify hostname where your lnd is available")
+	port             = flag.Int64("lnd-port", 10009, "Port on which lnd is listening")
 	tlsCert          = flag.String("lnd-tls", "tls.cert", "Specify path to tls.cert file")
 	invoiceMacaroon  = flag.String("lnd-invoice", "invoice.macaroon", "Specify path to invoice.macaroon file")
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount float64, desc string) (_ common.NewPayment, err error) {
+func (lnd Lnd) Invoice(amount float64, desc string) (_ common.LnInvoice, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	inv, err := lnd.InvoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
+	inv, err := lnd.invoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
 		Memo:   desc,
 		Value:  int64(amount),
 		Expiry: common.DefaultInvoiceExpiry,
@@ -44,7 +44,7 @@ func (lnd Lnd) Invoice(amount float64, desc string) (_ common.NewPayment, err er
 		return
 	}
 
-	return common.NewPayment{
+	return common.LnInvoice{
 		Hash:   hex.EncodeToString(inv.RHash),
 		Bolt11: inv.PaymentRequest,
 	}, nil
@@ -59,7 +59,7 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 		return
 	}
 
-	inv, err := lnd.InvoiceClient.LookupInvoice(ctx, &lnrpc.PaymentHash{RHash: invId})
+	inv, err := lnd.invoiceClient.LookupInvoice(ctx, &lnrpc.PaymentHash{RHash: invId})
 	if err != nil {
 		return
 	}
@@ -68,15 +68,21 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 		Ts:      inv.CreationDate,
 		Settled: inv.Settled,
 		Expiry:  inv.Expiry,
+		Value:   inv.Value,
 	}, nil
 }
 
-func (lnd Lnd) Address() (address string, err error) {
+func (lnd Lnd) Address(bech32 bool) (address string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	addrResp, err := lnd.InvoiceClient.NewAddress(ctx, &lnrpc.NewAddressRequest{
-		Type: lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH,
+	addrType := lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH
+	if bech32 {
+		addrType = lnrpc.NewAddressRequest_WITNESS_PUBKEY_HASH
+	}
+
+	addrResp, err := lnd.invoiceClient.NewAddress(ctx, &lnrpc.NewAddressRequest{
+		Type: addrType,
 	})
 	if err != nil {
 		return
@@ -89,7 +95,7 @@ func (lnd Lnd) Info() (info common.Info, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	i, err := lnd.ReadOnlyClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	i, err := lnd.readOnlyClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return
 	}
@@ -101,7 +107,7 @@ func (lnd Lnd) History() (invoices common.Invoices, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	list, err := lnd.ReadOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
+	list, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: 250,
 	})
 	if err != nil {
@@ -140,21 +146,20 @@ func getClient(creds credentials.TransportCredentials, file string) lnrpc.Lightn
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	connection, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", *lndHost, *lndPort), []grpc.DialOption{
+	connection, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", *hostname, *port), []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBlock(),
 		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
 	}...)
 	if err != nil {
-		panic(errors.Wrapf(err, "unable to connect to %s:%d", *lndHost, *lndPort))
+		panic(errors.Wrapf(err, "unable to connect to %s:%d", *hostname, *port))
 	}
 
 	return lnrpc.NewLightningClient(connection)
 }
 
 func New() Lnd {
-	// TODO: verify flags(?)
-	creds, err := credentials.NewClientTLSFromFile(*tlsCert, *lndHost)
+	creds, err := credentials.NewClientTLSFromFile(*tlsCert, *hostname)
 	if err != nil {
 		panic(err)
 	}
