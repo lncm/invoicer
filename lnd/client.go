@@ -31,7 +31,7 @@ var (
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount float64, desc string) (_ common.Invoice, err error) {
+func (lnd Lnd) Invoice(amount int64, desc string) (_ common.Invoice, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

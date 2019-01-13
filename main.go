@@ -15,9 +15,7 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -38,7 +36,7 @@ type (
 		BitcoinWallet
 
 		Info() (common.Info, error)
-		Invoice(amount float64, desc string) (common.Invoice, error)
+		Invoice(amount int64, desc string) (common.Invoice, error)
 		Status(hash string) (common.Status, error)
 		History() (common.Invoices, error)
 	}
@@ -126,80 +124,67 @@ func init() {
 }
 
 func newPayment(c *gin.Context) {
-	rawAmount := c.DefaultQuery("amount", "0")
-	amount, err := strconv.ParseFloat(rawAmount, 64)
+	var data struct {
+		Amount      int64  `json:"amount"`
+		Description string `json:"desc"`
+	}
+
+	err := c.ShouldBindJSON(&data)
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": "can't parse amount - make sure it's in satoshis",
+		c.AbortWithStatusJSON(400, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
 
-	desc := c.DefaultQuery("desc", "")
-	if len(desc) > common.MaxInvoiceDescLen {
-		c.JSON(400, gin.H{
+	if len(data.Description) > common.MaxInvoiceDescLen {
+		c.AbortWithStatusJSON(400, gin.H{
 			"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxInvoiceDescLen),
 		})
 		return
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	var payment common.NewPayment
-	var errs []string
 
-	// get LN invoice
-	go func() {
-		defer wg.Done()
+	// Generate new LN invoice
+	newInvoice, err := lnClient.Invoice(data.Amount, data.Description)
+	if err != nil {
+		c.AbortWithStatusJSON(500, gin.H{
+			"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
+		})
+		return
+	}
+	payment.Hash = newInvoice.Hash
+	payment.Bolt11 = newInvoice.Bolt11
 
-		// Generate new LN invoice
-		newInvoice, err := lnClient.Invoice(amount, desc)
-		if err != nil {
-			errs = append(errs, fmt.Sprintln("can't create new LN invoice", err))
-			return
-		}
-
-		// Extract invoice's creation date & expiry
-		invoice, err := lnClient.Status(newInvoice.Hash)
-		if err != nil {
-			errs = append(errs, fmt.Sprintln("can't get LN invoice", err))
-			return
-		}
-
-		payment.Hash = newInvoice.Hash
-		payment.Bolt11 = newInvoice.Bolt11
-		payment.CreatedAt = invoice.Ts
-		payment.Expiry = invoice.Expiry
-	}()
+	// Extract invoice's creation date & expiry
+	invoice, err := lnClient.Status(newInvoice.Hash)
+	if err != nil {
+		c.AbortWithStatusJSON(500, gin.H{
+			"error": errors.WithMessage(err, "can't get LN invoice").Error(),
+		})
+		return
+	}
+	payment.CreatedAt = invoice.Ts
+	payment.Expiry = invoice.Expiry
 
 	// get BTC address
-	go func() {
-		defer wg.Done()
-
-		payment.Address, err = lnClient.Address(false)
-		if err != nil {
-			errs = append(errs, fmt.Sprintln("can't get Bitcoin address", err))
-		}
-	}()
-
-	wg.Wait()
-
-	if len(errs) >= 2 {
-		c.JSON(500, gin.H{
-			"error": errs,
+	payment.Address, err = lnClient.Address(false)
+	if err != nil {
+		c.AbortWithStatusJSON(500, gin.H{
+			"error": errors.WithMessage(err, "can't get Bitcoin address").Error(),
 		})
 		return
 	}
 
-	label := desc
+	label := data.Description
 	if len(payment.Hash) > 0 {
 		label = payment.Hash
 	}
 
 	err = btcClient.ImportAddress(payment.Address, label)
 	if err != nil {
-		c.JSON(500, gin.H{
+		c.AbortWithStatusJSON(500, gin.H{
 			"error": fmt.Sprintf("can't import address (%s) to Bitcoin node: %v", payment.Address, err),
 		})
 		return
@@ -211,7 +196,7 @@ func newPayment(c *gin.Context) {
 func lnStatus(c *gin.Context) {
 	hash := c.Param("hash")
 	if len(hash) == 0 {
-		c.JSON(400, "err: preimage hash needs to be provided")
+		c.AbortWithStatusJSON(400, "err: preimage hash needs to be provided")
 		return
 	}
 
@@ -219,7 +204,7 @@ func lnStatus(c *gin.Context) {
 	for time.Now().Before(fin) {
 		status, err := lnClient.Status(hash)
 		if err != nil {
-			c.JSON(400, fmt.Sprintf("err: %v", err))
+			c.AbortWithStatusJSON(400, fmt.Sprintf("err: %v", err))
 			return
 		}
 
@@ -229,14 +214,14 @@ func lnStatus(c *gin.Context) {
 		}
 
 		if status.IsExpired() {
-			c.JSON(408, "expired")
+			c.AbortWithStatusJSON(408, "expired")
 			return
 		}
 
 		time.Sleep(5 * time.Second)
 	}
 
-	c.JSON(408, "expired")
+	c.AbortWithStatusJSON(408, "expired")
 }
 
 func getAmount(hash string) int64 {
@@ -259,7 +244,7 @@ func getAmount(hash string) int64 {
 func btcStatus(c *gin.Context) {
 	addr := c.Param("address")
 	if len(addr) == 0 {
-		c.JSON(400, "err: address needs to be provided")
+		c.AbortWithStatusJSON(400, "err: address needs to be provided")
 		return
 	}
 
@@ -269,7 +254,7 @@ func btcStatus(c *gin.Context) {
 	for time.Now().Before(fin) {
 		statuses, err := btcClient.CheckAddress(addr)
 		if err != nil {
-			c.JSON(400, fmt.Sprintf("err: %v", err))
+			c.AbortWithStatusJSON(400, fmt.Sprintf("err: %v", err))
 			return
 		}
 
@@ -292,7 +277,7 @@ func btcStatus(c *gin.Context) {
 			}
 
 			if desiredAmount > receivedAmount {
-				c.JSON(402, fmt.Sprintf("err: [%d conf] under-paid by %d sat", status.Confirmations, desiredAmount-receivedAmount))
+				c.AbortWithStatusJSON(402, fmt.Sprintf("err: [%d conf] under-paid by %d sat", status.Confirmations, desiredAmount-receivedAmount))
 				return
 			}
 		}
@@ -308,7 +293,7 @@ func btcStatus(c *gin.Context) {
 func history(c *gin.Context) {
 	history, err := lnClient.History()
 	if err != nil {
-		c.JSON(500, gin.H{
+		c.AbortWithStatusJSON(500, gin.H{
 			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
 		})
 		return
@@ -320,7 +305,7 @@ func history(c *gin.Context) {
 func info(c *gin.Context) {
 	info, err := lnClient.Info()
 	if err != nil {
-		c.JSON(500, gin.H{
+		c.AbortWithStatusJSON(500, gin.H{
 			"error": fmt.Sprintf("Can't get info from LN node: %v", err),
 		})
 		return

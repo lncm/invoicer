@@ -14,7 +14,7 @@ type (
 		Expiry    int64  `json:"expiry"`
 		Bolt11    string `json:"bolt11"`
 		Hash      string `json:"hash"`
-		Address   string `json:"address,omitempty"`
+		Address   string `json:"address"`
 	}
 
 	Status struct {
