@@ -4,14 +4,14 @@ import "time"
 
 const (
 	DefaultUsersFile     = "./users.list"
-	MaxDescLen           = 639
 	DefaultInvoiceExpiry = 180
+	MaxInvoiceDescLen    = 639
 )
 
 type (
 	LnInvoice struct {
-		Bolt11  string `json:"bolt11"`
-		Hash    string `json:"hash"`
+		Bolt11 string `json:"bolt11"`
+		Hash   string `json:"hash"`
 	}
 
 	NewPayment struct {
@@ -43,13 +43,15 @@ type (
 		Uris []string `json:"uris"`
 	}
 
-	AddressStatus []struct {
+	AddrStatus struct {
 		Address       string   `json:"address"`
 		Amount        float64  `json:"amount"`
 		Confirmations int64    `json:"confirmations"`
 		Label         string   `json:"label"`
 		TxIds         []string `json:"txids"`
 	}
+
+	AddrsStatus []AddrStatus
 )
 
 func (s Status) IsExpired() bool {

@@ -31,7 +31,7 @@ type (
 
 		BlockCount() (int64, error)
 		ImportAddress(address, label string) error
-		CheckAddress(address string) (common.AddressStatus, error)
+		CheckAddress(address string) (common.AddrsStatus, error)
 	}
 
 	LightningClient interface {
@@ -136,9 +136,9 @@ func newPayment(c *gin.Context) {
 	}
 
 	desc := c.DefaultQuery("desc", "")
-	if len(desc) > common.MaxDescLen {
+	if len(desc) > common.MaxInvoiceDescLen {
 		c.JSON(400, gin.H{
-			"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxDescLen),
+			"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxInvoiceDescLen),
 		})
 		return
 	}
