@@ -15,7 +15,7 @@ FROM alpine as final
 RUN apk add --no-cache --update bash
 
 # Create directory for data assets
-RUN mkdir -p /static/
+RUN mkdir /static/
 
 # TODO: switch this to invoicer-ui building stage
 COPY --from=builder /src/static/ /static/
