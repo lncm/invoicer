@@ -314,6 +314,22 @@ func info(c *gin.Context) {
 	c.JSON(200, info.Uris)
 }
 
+func healthCheck(c *gin.Context) {
+	_, err := btcClient.BlockCount()
+	if err != nil {
+		c.String(500, err.Error())
+		return
+	}
+
+	_, err = lnClient.Info()
+	if err != nil {
+		c.String(500, err.Error())
+		return
+	}
+
+	c.Status(200)
+}
+
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
@@ -335,10 +351,10 @@ func main() {
 	}
 
 	r.POST("/payment", newPayment)
-	r.GET("/payment", newPayment)             // TODO: remove; only here for testing
 	r.GET("/payment/ln/:hash", lnStatus)      // TODO: change reply format
 	r.GET("/payment/btc/:address", btcStatus) // TODO: change reply format
 	r.GET("/info", info)
+	r.GET("/healthcheck", healthCheck)
 
 	// TODO: only behind auth
 	if len(accounts) > 0 {
