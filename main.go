@@ -38,7 +38,7 @@ type (
 		BitcoinWallet
 
 		Info() (common.Info, error)
-		Invoice(amount float64, desc string) (common.LnInvoice, error)
+		Invoice(amount float64, desc string) (common.Invoice, error)
 		Status(hash string) (common.Status, error)
 		History() (common.Invoices, error)
 	}
@@ -151,22 +151,31 @@ func newPayment(c *gin.Context) {
 
 	// get LN invoice
 	go func() {
-		defer func() {
-			wg.Done()
-		}()
+		defer wg.Done()
 
-		payment.LnInvoice, err = lnClient.Invoice(amount, desc)
+		// Generate new LN invoice
+		newInvoice, err := lnClient.Invoice(amount, desc)
+		if err != nil {
+			errs = append(errs, fmt.Sprintln("can't create new LN invoice", err))
+			return
+		}
+
+		// Extract invoice's creation date & expiry
+		invoice, err := lnClient.Status(newInvoice.Hash)
 		if err != nil {
 			errs = append(errs, fmt.Sprintln("can't get LN invoice", err))
 			return
 		}
+
+		payment.Hash = newInvoice.Hash
+		payment.Bolt11 = newInvoice.Bolt11
+		payment.CreatedAt = invoice.Ts
+		payment.Expiry = invoice.Expiry
 	}()
 
 	// get BTC address
 	go func() {
-		defer func() {
-			wg.Done()
-		}()
+		defer wg.Done()
 
 		payment.Address, err = lnClient.Address(false)
 		if err != nil {

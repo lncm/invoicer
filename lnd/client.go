@@ -31,7 +31,7 @@ var (
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount float64, desc string) (_ common.LnInvoice, err error) {
+func (lnd Lnd) Invoice(amount float64, desc string) (_ common.Invoice, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -44,7 +44,7 @@ func (lnd Lnd) Invoice(amount float64, desc string) (_ common.LnInvoice, err err
 		return
 	}
 
-	return common.LnInvoice{
+	return common.Invoice{
 		Hash:   hex.EncodeToString(inv.RHash),
 		Bolt11: inv.PaymentRequest,
 	}, nil
