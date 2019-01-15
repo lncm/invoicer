@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/clightning"
@@ -52,7 +53,6 @@ var (
 	usersFile    = flag.String("users-file", "", "path to a file with acceptable user passwords")
 	lnClientName = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd and clightning")
 
-	indexFile = flag.String("index-file", "static/index.html", "pass path to a default index file")
 	staticDir = flag.String("static-dir", "", "pass path to a dir containing static files to be served")
 	port      = flag.Int64("port", 8080, "specify port to serve the website & API at")
 
@@ -371,19 +371,14 @@ func main() {
 	router.Use(cors.Default())
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	r := &router.RouterGroup
+	var middleware []gin.HandlerFunc
 	if len(accounts) > 0 {
-		r = router.Group("/", gin.BasicAuth(accounts))
+		middleware = append(middleware, gin.BasicAuth(accounts))
 	} else if len(*usersFile) != 0 {
 		panic("users.list passed, but no accounts detected")
 	}
 
-	r.StaticFile("/", *indexFile)
-
-	if *staticDir != "" {
-		r.Static("/static/", *staticDir)
-	}
-
+	r := router.Group("/api", middleware...)
 	r.POST("/payment", newPayment)
 	r.GET("/payment/ln/:hash", lnStatus)      // TODO: change reply format
 	r.GET("/payment/btc/:address", btcStatus) // TODO: change reply format
@@ -393,6 +388,10 @@ func main() {
 	// TODO: only behind auth
 	if len(accounts) > 0 {
 		r.GET("/history", history)
+	}
+
+	if *staticDir != "" {
+		router.NoRoute(static.ServeRoot("/", *staticDir))
 	}
 
 	err := router.Run(fmt.Sprintf(":%d", *port))
