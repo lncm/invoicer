@@ -70,6 +70,10 @@ Usage of bin/invoicer:
 API
 ---
 
+## `GET /`
+
+If `-static-dir` passed, serves `index.html` located within there. Otherwise 404. 
+
 ## `GET /api/info`
 
 Returns an array of LN connstrings, ex:
