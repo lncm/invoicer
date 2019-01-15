@@ -36,7 +36,7 @@ type (
 		BitcoinWallet
 
 		Info() (common.Info, error)
-		Invoice(amount int64, desc string) (common.Invoice, error)
+		Invoice(amount int64, desc string) (string, string, error)
 		Status(hash string) (common.Status, error)
 		History() (common.Invoices, error)
 	}
@@ -147,18 +147,16 @@ func newPayment(c *gin.Context) {
 	var payment common.NewPayment
 
 	// Generate new LN invoice
-	newInvoice, err := lnClient.Invoice(data.Amount, data.Description)
+	payment.Bolt11, payment.Hash, err = lnClient.Invoice(data.Amount, data.Description)
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
 		})
 		return
 	}
-	payment.Hash = newInvoice.Hash
-	payment.Bolt11 = newInvoice.Bolt11
 
 	// Extract invoice's creation date & expiry
-	invoice, err := lnClient.Status(newInvoice.Hash)
+	invoice, err := lnClient.Status(payment.Hash)
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": errors.WithMessage(err, "can't get LN invoice").Error(),
@@ -290,8 +288,25 @@ func btcStatus(c *gin.Context) {
 
 // TODO: pagination
 // TODO: only paid
+// TODO: limit
 func history(c *gin.Context) {
-	history, err := lnClient.History()
+	var warning string
+	// fetch bitcoin history
+	btcAllAddresses, err := btcClient.CheckAddress("")
+	if err != nil {
+		warning = "Unable to fetch Bitcoin history. Only showing LN."
+	}
+
+	// Convert Bitcoin history from list to easily addressable map
+	btcHistory := make(map[string]common.AddrStatus)
+	for _, payment := range btcAllAddresses {
+		if payment.Label != "" {
+			btcHistory[payment.Label] = payment
+		}
+	}
+
+	// fetch LN history
+	lnHistory, err := lnClient.History()
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
@@ -299,7 +314,26 @@ func history(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, history)
+	// merge histories
+	var history []common.Payment
+	for _, invoice := range lnHistory {
+		var payment common.Payment
+		payment.ApplyLn(invoice)
+
+		if btcStatus, ok := btcHistory[payment.Hash]; ok {
+			payment.ApplyBtc(btcStatus)
+		}
+
+		history = append(history, payment)
+	}
+
+	c.JSON(200, struct {
+		History []common.Payment `json:"history"`
+		Error   string           `json:"error,omitempty"`
+	}{
+		History: history,
+		Error:   warning,
+	})
 }
 
 func info(c *gin.Context) {

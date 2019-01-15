@@ -134,15 +134,100 @@ TBD !<br>
 
 ## `GET /api/history`
 
-Presently takes no arguments, and returns:
+Presently takes no arguments, and returns (various success cases included below):
 
+```json
+{
+  "history": [
+    {
+      "created_at": 1547549353,
+      "expiry": 180,
+      "bolt11": "lnbc1u1pwrmw4fpp5hvyhndhrc0uxzvzgzpcyzsr6z0mkm8w6fwqmkhcluy6typw7ukdqdqcw3jhxapqf38zqurp09kk2mn5cqzysxqz95adjqqm2v7dhkhaehng6rrht9xafyqxuea6fus3rluzmjutjnskdzckasq958hku9t5lmvag6g2jn3fczx8gpep6qqm5aft4p07wwy6sq28p740",
+      "hash": "bb0979b6e3c3f8613048107041407a13f76d9dda4b81bb5f1fe134b205dee59a",
+      "address": "3K4PFPchtzzPXL5aHheJLi79qjh6hn3csv",
+      "description": "test LN payment",
+      "amount": 100,
+      "is_expired": true,
+      "is_paid": true,
+      "ln_paid": true,
+      "btc_paid": false,
+      "btc_amount": 0,
+      "confirmations": 0,
+      "txids": []
+    },
+    {
+      "created_at": 1547549409,
+      "expiry": 180,
+      "bolt11": "lnbc10u1pwrmwhppp59mu786ehef0w9rku5zuprz42mwktkg2temzyx55zkx4zhtelwz0qdq6w3jhxapqgf2yxgrsv9uk6etwwscqzysxqz95udv5z0kz9r37xg7rlxh0juc6wqgmnaccdgajstklx0eeuh4ggjx97m7mgqwrx8x4pw5qs46zevsw8rczd9uctehnmmya7hh7tlrumdgph5y4lz",
+      "hash": "2ef9e3eb37ca5ee28edca0b8118aaadbacbb214bcec4435282b1aa2baf3f709e",
+      "address": "3NFeVNsU77aXyxvtNubdXmHaSde4zrAmgy",
+      "description": "test BTC payment",
+      "amount": 1000,
+      "is_expired": true,
+      "is_paid": true,
+      "ln_paid": false,
+      "btc_paid": true,
+      "btc_amount": 1000,
+      "confirmations": 0,
+      "txids": [
+        "978f3e4da26198441ce0605b631ff0b16e6ce944957cd106cb842925225ae7f1"
+      ]
+    },
+    {
+      "created_at": 1547552156,
+      "expiry": 180,
+      "bolt11": "lnbc10u1pwrm3vupp5clhjnqm4jh3ea4e02y5fgj5uqptkfd4g9p6qkvl4hl7e85rmkt2qdqcw3jhxapqv3hh2cnvv5s8qctecqzysxqz959v0qlp623lvpjhm40feypqrcm2d45th069qw505ea2m8xljgvp7h6hcrjp5dpauvg5kdrc3ytqf2svpx9c9m8hcjwam3u4vd2zts6ksq8zl5ux",
+      "hash": "c7ef29837595e39ed72f5128944a9c005764b6a828740b33f5bffd93d07bb2d4",
+      "address": "3MVZND29Vcsw1XzUNcuv9uFwVDCd8gyWuT",
+      "description": "test double pay",
+      "amount": 1000,
+      "is_expired": true,
+      "is_paid": true,
+      "ln_paid": true,
+      "btc_paid": true,
+      "btc_amount": 1000,
+      "confirmations": 0,
+      "txids": [
+        "6aa3d526e054921bca4f2753e1e6456dc2b7c4a80cd0be9e20d5e9386987d8e2"
+      ]
+    },
+    {
+      "created_at": 1547552307,
+      "expiry": 180,
+      "bolt11": "lnbc10u1pwrm33npp5s9mcpq6vntk2e5vdaljnzx6t6fl2hu958aef2g5al4pgyhl8kazqdqjw3jhxapqv4u8q6tj0ycqzysxqz9565njn5eke7yzmed0fud6ne2pmd6naxrz4uy3lftk4xz8w7a4vys5dx239xrudh9xmlvws5kg0upvezfg8q0c39rsxucz589f099xmrcp5wyvhh",
+      "hash": "817780834c9aecacd18defe5311b4bd27eabf0b43f7295229dfd42825fe7b744",
+      "address": "32LjfFVA1eNuryyYj876Gs9u6nNWx73bVk",
+      "description": "test expiry",
+      "amount": 1000,
+      "is_expired": true,
+      "is_paid": false,
+      "ln_paid": false,
+      "btc_paid": false,
+      "btc_amount": 0,
+      "confirmations": 0,
+      "txids": []
+    },
+    {
+      "created_at": 1547552348,
+      "expiry": 180,
+      "bolt11": "lnbc10u1pwrm3jupp5r7huhz6hf4urp64zgfg4cq2xnyyzehju0h8gz86dxzfp7pa4zqvsdq5w3jhxapqwpjkuerfdenscqzysxqz95xtkpjvdjtpc7wd608zn8v75wtv7prjtcz5jqg09h7yec6zvtkfdxvh5lqag56vj878wuw0umjae7jyne3a2cqq2yns2znjfl3kgl9ssqhregy7",
+      "hash": "1fafcb8b574d7830eaa242515c014699082cde5c7dce811f4d30921f07b51019",
+      "address": "36bZ4tXUYAM8CB1QcCq8Lb5Kmh4S6vnC1Z",
+      "description": "test pending",
+      "amount": 1000,
+      "is_expired": false,
+      "is_paid": false,
+      "ln_paid": false,
+      "btc_paid": false,
+      "btc_amount": 0,
+      "confirmations": 0,
+      "txids": []
+    }
+  ]
+}
+```
 
-!<br>
-!<br>
-TBD !<br>
-!<br>
-!
-
+> **NOTE:** most recent invoice is on the bottom
 
 ## `GET /api/healthcheck`
 
