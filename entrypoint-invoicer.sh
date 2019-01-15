@@ -39,13 +39,14 @@ if [ -z $STATICDIR ]; then
     STATICDIR='/static/'
 fi
 
+
 /bin/invoicer -ln-client=$LNCLIENT \
     -lnd-host=$LNDHOST \
     -lnd-port=$LNDPORT \
     -port=$PORT \
     -lnd-invoice=$INVOICEMACAROON \
     -lnd-readonly=$READONLYMACAROON \
-    -lnd-tls=$TLSFILE \
+    -lnd-tls=$LNDTLSFILE \
     -bitcoind-host=$BTCHOST \
     -bitcoind-user=$BTCRPCUSER \
     -bitcoind-pass=$BTCRPCPASS \
