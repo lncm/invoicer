@@ -36,6 +36,9 @@ RUN chmod 755 /bin/check-invoicer.sh
 # Expose Invoicer port
 EXPOSE 8080
 
+# Health Check line
+HEALTHCHECK CMD /bin/check-invoicer.sh || exit 1
+
 # Invoicer Entrypoint
 ENTRYPOINT entrypoint-invoicer.sh
 
