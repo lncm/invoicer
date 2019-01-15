@@ -12,7 +12,9 @@ RUN make bin/invoicer
 # Start a new, final image.
 FROM alpine as final
 
-RUN apk add --no-cache --update bash
+# Required for endpoints and healthcheck
+RUN apk add --no-cache --update bash \
+    curl
 
 # Create directory for data assets
 RUN mkdir /static/
@@ -22,9 +24,14 @@ COPY --from=builder /src/static/ /static/
 
 # Copy the binaries from the builder image.
 COPY --from=builder /src/bin/invoicer /bin/
+
+# Copy entrypoint
 COPY entrypoint-invoicer.sh /bin/
+# Copy healthcheck script
+COPY check-invoicer.sh /bin/
 
 RUN chmod 755 /bin/entrypoint-invoicer.sh
+RUN chmod 755 /bin/check-invoicer.sh
 
 # Expose Invoicer port
 EXPOSE 8080
