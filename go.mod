@@ -5,7 +5,6 @@ require (
 	github.com/coreos/bbolt v1.3.0 // indirect
 	github.com/gin-contrib/cors v0.0.0-20181008113111-488de3ec974f
 	github.com/gin-contrib/gzip v0.0.0-20190101123152-0eb78e93402e
-	github.com/gin-gonic/contrib v0.0.0-20181101072842-54170a7b0b4b
 	github.com/gin-gonic/gin v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway v1.5.1 // indirect
 	github.com/juju/clock v0.0.0-20180808021310-bab88fc67299 // indirect

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/clightning"
@@ -15,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -385,13 +385,13 @@ func main() {
 	r.GET("/info", info)
 	r.GET("/healthcheck", healthCheck)
 
-	// TODO: only behind auth
+	// history only available if Basic Auth is enabled
 	if len(accounts) > 0 {
 		r.GET("/history", history)
 	}
 
 	if *staticDir != "" {
-		router.NoRoute(static.ServeRoot("/", *staticDir))
+		router.StaticFile("/", path.Join(*staticDir, "index.html"))
 	}
 
 	err := router.Run(fmt.Sprintf(":%d", *port))
