@@ -130,11 +130,80 @@ Takes two parameters:
 
 Returns:
 
-!<br>
-!<br>
-TBD !<br>
-!<br>
-!
+#### on expiry (code 408)
+
+```json
+{
+  "error": "expired"
+}
+```
+
+#### on LN success (code 200)
+
+```json
+{
+    "ln": {
+        "created_at": 1547562917,
+        "is_paid": true,
+        "expiry": 180,
+        "amount": 1000
+    }
+}
+```
+
+#### on BTC success w/exact amount (code 200)
+
+```json
+{
+    "bitcoin": {
+        "address": "3Ee7SdoCCC3ECC3NAPx5VwE6F8pjwnZzpW",
+        "amount": 0.0001,
+        "confirmations": 0,
+        "txids": [
+            "9faf2560c1a43599abaad06ab4d038ff7353c4f2992fe44ccba20fd25d6d3a60"
+        ]
+    }
+}
+```
+
+#### on BTC success w/too big amount (code 202)
+
+```json
+{
+    "bitcoin": {
+        "address": "3Ee7SdoCCC3ECC3NAPx5VwE6F8pjwnZzpW",
+        "amount": 0.0001,
+        "confirmations": 0,
+        "txids": [
+            "9faf2560c1a43599abaad06ab4d038ff7353c4f2992fe44ccba20fd25d6d3a60"
+        ]
+    }
+}
+``` 
+
+#### on BTC success w/too small amount (code 402)
+
+```json
+{
+    "error": "not enough",
+    "bitcoin": {
+        "address": "3Ee7SdoCCC3ECC3NAPx5VwE6F8pjwnZzpW",
+        "amount": 0.0001,
+        "confirmations": 0,
+        "txids": [
+            "9faf2560c1a43599abaad06ab4d038ff7353c4f2992fe44ccba20fd25d6d3a60"
+        ]
+    }
+}
+```
+
+#### On any other error
+```json
+{
+    "error": "error message…"
+}
+```
+
 
 ## `GET /api/history`
 

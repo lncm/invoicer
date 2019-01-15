@@ -57,10 +57,10 @@ type (
 	Invoices []Invoice
 
 	Status struct {
-		Ts      int64
-		Settled bool
-		Expiry  int64
-		Value   int64
+		Ts      int64 `json:"created_at"`
+		Settled bool  `json:"is_paid"`
+		Expiry  int64 `json:"expiry"`
+		Value   int64 `json:"amount"`
 	}
 
 	Info struct {
@@ -71,11 +71,17 @@ type (
 		Address       string   `json:"address"`
 		Amount        float64  `json:"amount"`
 		Confirmations int64    `json:"confirmations"`
-		Label         string   `json:"label"`
+		Label         string   `json:"label,omitempty"`
 		TxIds         []string `json:"txids"`
 	}
 
 	AddrsStatus []AddrStatus
+
+	StatusReply struct {
+		Error   string      `json:"error,omitempty"`
+		Ln      *Status     `json:"ln,omitempty"`
+		Bitcoin *AddrStatus `json:"bitcoin,omitempty"`
+	}
 )
 
 func (s Status) IsExpired() bool {
