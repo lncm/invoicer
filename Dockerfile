@@ -36,8 +36,8 @@ RUN chmod 755 /bin/check-invoicer.sh
 # Expose Invoicer port
 EXPOSE 8080
 
-# Health Check line
-HEALTHCHECK --interval=1m --timeout=20s \
+# Health Check line 
+HEALTHCHECK --start-period=1m --interval=3m --timeout=30s --retries=5 \
     CMD /bin/check-invoicer.sh || exit 1
 
 # Invoicer Entrypoint
