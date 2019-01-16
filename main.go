@@ -12,9 +12,8 @@ import (
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/lnd"
 	"github.com/pkg/errors"
-	"log"
 	"os"
-	"regexp"
+	"path"
 	"strings"
 	"time"
 )
@@ -36,7 +35,7 @@ type (
 		BitcoinWallet
 
 		Info() (common.Info, error)
-		Invoice(amount int64, desc string) (common.Invoice, error)
+		Invoice(amount int64, desc string) (string, string, error)
 		Status(hash string) (common.Status, error)
 		History() (common.Invoices, error)
 	}
@@ -52,7 +51,6 @@ var (
 	usersFile    = flag.String("users-file", "", "path to a file with acceptable user passwords")
 	lnClientName = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd and clightning")
 
-	indexFile = flag.String("index-file", "static/index.html", "pass path to a default index file")
 	staticDir = flag.String("static-dir", "", "pass path to a dir containing static files to be served")
 	port      = flag.Int64("port", 8080, "specify port to serve the website & API at")
 
@@ -147,18 +145,16 @@ func newPayment(c *gin.Context) {
 	var payment common.NewPayment
 
 	// Generate new LN invoice
-	newInvoice, err := lnClient.Invoice(data.Amount, data.Description)
+	payment.Bolt11, payment.Hash, err = lnClient.Invoice(data.Amount, data.Description)
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
 		})
 		return
 	}
-	payment.Hash = newInvoice.Hash
-	payment.Bolt11 = newInvoice.Bolt11
 
 	// Extract invoice's creation date & expiry
-	invoice, err := lnClient.Status(newInvoice.Hash)
+	invoice, err := lnClient.Status(payment.Hash)
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": errors.WithMessage(err, "can't get LN invoice").Error(),
@@ -193,105 +189,136 @@ func newPayment(c *gin.Context) {
 	c.JSON(200, payment)
 }
 
-func lnStatus(c *gin.Context) {
-	hash := c.Param("hash")
-	if len(hash) == 0 {
-		c.AbortWithStatusJSON(400, "err: preimage hash needs to be provided")
-		return
-	}
+func status(c *gin.Context) {
+	hash := c.Query("hash")
+	addr := c.Query("address")
 
-	fin := time.Now().Add(common.DefaultInvoiceExpiry * time.Second)
-	for time.Now().Before(fin) {
-		status, err := lnClient.Status(hash)
-		if err != nil {
-			c.AbortWithStatusJSON(400, fmt.Sprintf("err: %v", err))
-			return
-		}
-
-		if status.Settled {
-			c.JSON(200, "paid")
-			return
-		}
-
-		if status.IsExpired() {
-			c.AbortWithStatusJSON(408, "expired")
-			return
-		}
-
-		time.Sleep(5 * time.Second)
-	}
-
-	c.AbortWithStatusJSON(408, "expired")
-}
-
-func getAmount(hash string) int64 {
-	// verify label is a hex number (LN hash)
-	re := regexp.MustCompile("^[[:xdigit:]]{64}$")
-	if !re.MatchString(hash) {
-		return -1 // error: no known invoice to get the data from
-	}
-
-	s, err := lnClient.Status(hash)
-	if err != nil {
-		log.Println(err)
-		return -1 // error: unable to get the invoice
-	}
-
-	return s.Value
-
-}
-
-func btcStatus(c *gin.Context) {
-	addr := c.Param("address")
-	if len(addr) == 0 {
-		c.AbortWithStatusJSON(400, "err: address needs to be provided")
+	if len(hash) == 0 && len(addr) == 0 {
+		c.AbortWithStatusJSON(500, common.StatusReply{
+			Error: "At least one of `hash` or `address` needs to be provided",
+		})
 		return
 	}
 
 	var desiredAmount int64
 
+	// do initial LN invoice check, and adjust expiration if available
 	fin := time.Now().Add(common.DefaultInvoiceExpiry * time.Second)
-	for time.Now().Before(fin) {
-		statuses, err := btcClient.CheckAddress(addr)
+	if len(hash) > 0 {
+		lnStatus, err := lnClient.Status(hash)
 		if err != nil {
-			c.AbortWithStatusJSON(400, fmt.Sprintf("err: %v", err))
+			c.AbortWithStatusJSON(500, common.StatusReply{
+				Error: fmt.Sprintf("unable to fetch invoice: %s", err),
+			})
 			return
 		}
 
-		status := statuses[0]
-
-		if desiredAmount == 0 {
-			desiredAmount = getAmount(status.Label)
+		if lnStatus.Settled {
+			c.JSON(200, common.StatusReply{Ln: &lnStatus})
+			return
 		}
 
-		receivedAmount := int64(status.Amount * 1e8)
-		if receivedAmount > 0 {
-			if desiredAmount == receivedAmount {
-				c.JSON(200, fmt.Sprintf("[%d conf] paid", status.Confirmations))
-				return
-			}
-
-			if receivedAmount > desiredAmount {
-				c.JSON(202, fmt.Sprintf("[%d conf] over-paid by %d sat", status.Confirmations, receivedAmount-desiredAmount))
-				return
-			}
-
-			if desiredAmount > receivedAmount {
-				c.AbortWithStatusJSON(402, fmt.Sprintf("err: [%d conf] under-paid by %d sat", status.Confirmations, desiredAmount-receivedAmount))
-				return
-			}
+		if lnStatus.IsExpired() {
+			c.AbortWithStatusJSON(408, common.StatusReply{Error: "expired"})
+			return
 		}
 
-		time.Sleep(5 * time.Second)
+		fin = time.Unix(lnStatus.Ts, 0).Add(time.Duration(lnStatus.Expiry) * time.Second)
+		desiredAmount = lnStatus.Value
 	}
 
-	c.JSON(408, "expired")
+	// keep polling for status update every N seconds
+	for time.Now().Before(fin) {
+		if len(addr) > 0 {
+			btcStatuses, err := btcClient.CheckAddress(addr)
+			if err != nil {
+				if len(hash) == 0 {
+					c.AbortWithStatusJSON(500, common.StatusReply{
+						Error: fmt.Sprintf("unable to check status: %s", err),
+					})
+					return
+				}
+
+				// if LN hash available and fetching bitcoin status produced an error, disable checking bitcoin
+				addr = ""
+			}
+
+			btcStatus := btcStatuses[0]
+
+			receivedAmount := int64(btcStatus.Amount) * 1e8
+			if btcStatus.Amount > 0 {
+				// no need to return it now; might be useful later
+				btcStatus.Label = ""
+
+				if desiredAmount == receivedAmount {
+					c.JSON(200, common.StatusReply{Bitcoin: &btcStatus})
+					return
+				}
+
+				if receivedAmount > desiredAmount {
+					c.JSON(202, common.StatusReply{Bitcoin: &btcStatus})
+					return
+				}
+
+				if desiredAmount > receivedAmount {
+					c.AbortWithStatusJSON(402, common.StatusReply{
+						Error:   "not enough",
+						Bitcoin: &btcStatus,
+					})
+					return
+				}
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+
+		if len(hash) > 0 {
+			lnStatus, err := lnClient.Status(hash)
+			if err != nil {
+				c.AbortWithStatusJSON(500, common.StatusReply{
+					Error: fmt.Sprintf("unable to fetch invoice: %s", err),
+				})
+				return
+			}
+
+			if lnStatus.Settled {
+				c.JSON(200, common.StatusReply{Ln: &lnStatus})
+				return
+			}
+
+			if lnStatus.IsExpired() {
+				c.AbortWithStatusJSON(408, common.StatusReply{Error: "expired"})
+				return
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	c.AbortWithStatusJSON(408, common.StatusReply{Error: "expired"})
 }
 
 // TODO: pagination
 // TODO: only paid
+// TODO: limit
 func history(c *gin.Context) {
-	history, err := lnClient.History()
+	var warning string
+	// fetch bitcoin history
+	btcAllAddresses, err := btcClient.CheckAddress("")
+	if err != nil {
+		warning = "Unable to fetch Bitcoin history. Only showing LN."
+	}
+
+	// Convert Bitcoin history from list to easily addressable map
+	btcHistory := make(map[string]common.AddrStatus)
+	for _, payment := range btcAllAddresses {
+		if payment.Label != "" {
+			btcHistory[payment.Label] = payment
+		}
+	}
+
+	// fetch LN history
+	lnHistory, err := lnClient.History()
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{
 			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
@@ -299,7 +326,26 @@ func history(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, history)
+	// merge histories
+	var history []common.Payment
+	for _, invoice := range lnHistory {
+		var payment common.Payment
+		payment.ApplyLn(invoice)
+
+		if btcStatus, ok := btcHistory[payment.Hash]; ok {
+			payment.ApplyBtc(btcStatus)
+		}
+
+		history = append(history, payment)
+	}
+
+	c.JSON(200, struct {
+		History []common.Payment `json:"history"`
+		Error   string           `json:"error,omitempty"`
+	}{
+		History: history,
+		Error:   warning,
+	})
 }
 
 func info(c *gin.Context) {
@@ -337,28 +383,26 @@ func main() {
 	router.Use(cors.Default())
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	r := &router.RouterGroup
+	var middleware []gin.HandlerFunc
 	if len(accounts) > 0 {
-		r = router.Group("/", gin.BasicAuth(accounts))
+		middleware = append(middleware, gin.BasicAuth(accounts))
 	} else if len(*usersFile) != 0 {
 		panic("users.list passed, but no accounts detected")
 	}
 
-	r.StaticFile("/", *indexFile)
-
-	if *staticDir != "" {
-		r.Static("/static/", *staticDir)
-	}
-
+	r := router.Group("/api", middleware...)
 	r.POST("/payment", newPayment)
-	r.GET("/payment/ln/:hash", lnStatus)      // TODO: change reply format
-	r.GET("/payment/btc/:address", btcStatus) // TODO: change reply format
+	r.GET("/payment", status)
 	r.GET("/info", info)
 	r.GET("/healthcheck", healthCheck)
 
-	// TODO: only behind auth
+	// history only available if Basic Auth is enabled
 	if len(accounts) > 0 {
 		r.GET("/history", history)
+	}
+
+	if *staticDir != "" {
+		router.StaticFile("/", path.Join(*staticDir, "index.html"))
 	}
 
 	err := router.Run(fmt.Sprintf(":%d", *port))

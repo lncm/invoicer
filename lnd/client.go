@@ -31,7 +31,7 @@ var (
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount int64, desc string) (_ common.Invoice, err error) {
+func (lnd Lnd) Invoice(amount int64, desc string) (invoice, hash string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -44,10 +44,7 @@ func (lnd Lnd) Invoice(amount int64, desc string) (_ common.Invoice, err error) 
 		return
 	}
 
-	return common.Invoice{
-		Hash:   hex.EncodeToString(inv.RHash),
-		Bolt11: inv.PaymentRequest,
-	}, nil
+	return inv.PaymentRequest, hex.EncodeToString(inv.RHash), nil
 }
 
 func (lnd Lnd) Status(hash string) (s common.Status, err error) {
@@ -108,7 +105,8 @@ func (lnd Lnd) History() (invoices common.Invoices, err error) {
 	defer cancel()
 
 	list, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
-		NumMaxInvoices: 250,
+		NumMaxInvoices: 100,
+		Reversed:       true,
 	})
 	if err != nil {
 		return
@@ -116,14 +114,17 @@ func (lnd Lnd) History() (invoices common.Invoices, err error) {
 
 	for _, inv := range list.Invoices {
 		invoices = append(invoices, common.Invoice{
-			Bolt11:      inv.PaymentRequest,
 			Description: inv.Memo,
-			Hash:        hex.EncodeToString(inv.RHash),
-			Amount:      inv.AmtPaidSat,
+			Amount:      inv.Value,
 			Paid:        inv.Settled,
 			PaidAt:      inv.SettleDate,
-			Expired:     inv.Expiry < time.Now().Unix(),
-			ExpireAt:    inv.CreationDate + inv.Expiry,
+			Expired:     inv.CreationDate+inv.Expiry < time.Now().Unix(),
+			NewPayment: common.NewPayment{
+				Bolt11:    inv.PaymentRequest,
+				Hash:      hex.EncodeToString(inv.RHash),
+				CreatedAt: inv.CreationDate,
+				Expiry:    inv.Expiry,
+			},
 		})
 	}
 

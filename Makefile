@@ -1,4 +1,4 @@
-VERSION = v0.0.12
+VERSION = v0.0.13
 
 VERSION_STAMP="main.version=$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
@@ -30,7 +30,7 @@ run: $(SRC)
 tag:
 	git tag -sa $(VERSION) -m "$(VERSION)"
 
-all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
+all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
 
 static/index.html:
 	wget -P static -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
