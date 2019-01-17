@@ -32,7 +32,7 @@ fi
 if [ -z $INVOICEMACAROON ]; then
     INVOICEMACAROON='/lnd/data/chain/bitcoin/mainnet/invoice.macaroon'
 fi
-if [ -z $TLSFILE ]; then
+if [ -z $LNDTLSFILE ]; then
     LNDTLSFILE='/lnd/tls.cert'
 fi
 if [ -z $STATICDIR ]; then
