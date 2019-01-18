@@ -78,6 +78,7 @@ type (
 	AddrsStatus []AddrStatus
 
 	StatusReply struct {
+		Code    int         `json:"-"`
 		Error   string      `json:"error,omitempty"`
 		Ln      *Status     `json:"ln,omitempty"`
 		Bitcoin *AddrStatus `json:"bitcoin,omitempty"`

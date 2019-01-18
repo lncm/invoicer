@@ -31,10 +31,7 @@ var (
 	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
 )
 
-func (lnd Lnd) Invoice(amount int64, desc string) (invoice, hash string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoice, hash string, err error) {
 	inv, err := lnd.invoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
 		Memo:   desc,
 		Value:  int64(amount),
@@ -47,10 +44,32 @@ func (lnd Lnd) Invoice(amount int64, desc string) (invoice, hash string, err err
 	return inv.PaymentRequest, hex.EncodeToString(inv.RHash), nil
 }
 
-func (lnd Lnd) Status(hash string) (s common.Status, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+// TODO: do not resubscribe on each request
+func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, err error) {
+	invSub, err := lnd.invoiceClient.SubscribeInvoices(ctx, &lnrpc.InvoiceSubscription{})
+	if err != nil {
+		return
+	}
 
+	for {
+		var inv *lnrpc.Invoice
+		inv, err = invSub.Recv()
+		if err != nil {
+			return
+		}
+
+		if hash == hex.EncodeToString(inv.RHash) {
+			return common.Status{
+				Ts:      inv.CreationDate,
+				Settled: inv.Settled,
+				Expiry:  inv.Expiry,
+				Value:   inv.Value,
+			}, nil
+		}
+	}
+}
+
+func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err error) {
 	invId, err := hex.DecodeString(hash)
 	if err != nil {
 		return
@@ -69,10 +88,7 @@ func (lnd Lnd) Status(hash string) (s common.Status, err error) {
 	}, nil
 }
 
-func (lnd Lnd) Address(bech32 bool) (address string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (lnd Lnd) Address(ctx context.Context, bech32 bool) (address string, err error) {
 	addrType := lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH
 	if bech32 {
 		addrType = lnrpc.NewAddressRequest_WITNESS_PUBKEY_HASH
@@ -88,10 +104,7 @@ func (lnd Lnd) Address(bech32 bool) (address string, err error) {
 	return addrResp.Address, nil
 }
 
-func (lnd Lnd) Info() (info common.Info, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
+func (lnd Lnd) Info(ctx context.Context) (info common.Info, err error) {
 	i, err := lnd.readOnlyClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return
@@ -100,10 +113,7 @@ func (lnd Lnd) Info() (info common.Info, err error) {
 	return common.Info{Uris: i.Uris}, nil
 }
 
-func (lnd Lnd) History() (invoices common.Invoices, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error) {
 	list, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: 100,
 		Reversed:       true,

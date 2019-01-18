@@ -1,6 +1,7 @@
 package cLightning
 
 import (
+	"context"
 	"github.com/lncm/invoicer/common"
 	"github.com/pkg/errors"
 )
@@ -9,23 +10,27 @@ const ClientName = "clightning"
 
 type CLightning struct{}
 
-func (cLightning CLightning) Invoice(amount int64, desc string) (invoice, hash string, err error) {
+func (cLightning CLightning) NewInvoice(ctx context.Context, amount int64, desc string) (invoice, hash string, err error) {
 	return invoice, hash, errors.New("not implemented yet")
 }
 
-func (cLightning CLightning) Status(hash string) (s common.Status, err error) {
+func (cLightning CLightning) Status(ctx context.Context, hash string) (s common.Status, err error) {
 	return s, errors.New("not implemented yet")
 }
 
-func (cLightning CLightning) Address(bool) (address string, err error) {
+func (cLightning CLightning) StatusWait(ctx context.Context, hash string) (s common.Status, err error) {
+	return s, errors.New("not implemented yet")
+}
+
+func (cLightning CLightning) Address(context.Context, bool) (address string, err error) {
 	return address, errors.New("not implemented yet")
 }
 
-func (cLightning CLightning) Info() (info common.Info, err error) {
+func (cLightning CLightning) Info(ctx context.Context) (info common.Info, err error) {
 	return info, errors.New("not implemented yet")
 }
 
-func (cLightning CLightning) History() (invoices common.Invoices, err error) {
+func (cLightning CLightning) History(ctx context.Context) (invoices common.Invoices, err error) {
 	return invoices, errors.New("not implemented yet")
 }
 

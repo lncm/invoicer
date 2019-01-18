@@ -121,16 +121,16 @@ On error, returns:
 
 ## `GET /api/payment?hash=LN-hash&address=BTC-address`
 
-Takes two parameters:
+#### Takes:
 
 * `hash` - hash of the preimage returned previously by the `POST /payment` endpoint
 * `address` - Bitcoin address returned previously by the `POST /payment` endpoint
 
 > **NOTE:** providing just one will run checks on one network only.
 
-Returns:
+#### Returns:
 
-#### on expiry (code 408)
+##### on expiry (code 408)
 
 ```json
 {
@@ -138,7 +138,7 @@ Returns:
 }
 ```
 
-#### on LN success (code 200)
+##### on LN success (code 200)
 
 ```json
 {
@@ -151,7 +151,7 @@ Returns:
 }
 ```
 
-#### on BTC success w/exact amount (code 200)
+##### on BTC success w/exact amount (code 200)
 
 ```json
 {
@@ -166,7 +166,7 @@ Returns:
 }
 ```
 
-#### on BTC success w/too big amount (code 202)
+##### on BTC success w/too big amount (code 202)
 
 ```json
 {
@@ -181,7 +181,7 @@ Returns:
 }
 ``` 
 
-#### on BTC success w/too small amount (code 402)
+##### on BTC success w/too small amount (code 402)
 
 ```json
 {
@@ -197,17 +197,20 @@ Returns:
 }
 ```
 
-#### On any other error
+##### On any other error
 ```json
 {
     "error": "error message…"
 }
 ```
 
-
 ## `GET /api/history`
 
-Presently takes no arguments, and returns (various success cases included below):
+#### Takes:
+
+* `only_status` - filter payments to only one specific state: `paid`, `expired` or `panding`.
+
+#### Returns <small>(various cases included below):</small>
 
 ```json
 {
