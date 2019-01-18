@@ -7,6 +7,7 @@ RUN mkdir -p /src/
 COPY ./ /src/
 WORKDIR /src/
 
+RUN git config --global http.sslVerify false
 RUN make bin/invoicer
 
 # Start a new, final image.
@@ -37,7 +38,7 @@ RUN chmod 755 /bin/check-invoicer.sh
 EXPOSE 8080
 
 # Health Check line 
-HEALTHCHECK --start-period=1m --interval=3m --timeout=30s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=15s --retries=15 \
     CMD /bin/check-invoicer.sh || exit 1
 
 # Invoicer Entrypoint

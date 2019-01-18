@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+create_default_users_list() {
+    /bin/echo "invoicer defaultpassw0rd" > /users.list
+    USERSFILE='/users.list'
+}
+
 # Default values
 if [ -z $LNCLIENT ]; then
     LNCLIENT='lnd'
@@ -38,7 +43,14 @@ fi
 if [ -z $STATICDIR ]; then
     STATICDIR='/static/'
 fi
-
+if [ -z $USERSFILE ]; then
+    create_default_users_list
+else
+    # If its set, check if the file exists otherwise just set it and make a new one
+    if ! [ -f $USERSFILE ]; then
+        create_default_users_list
+    fi
+fi
 
 /bin/invoicer -ln-client=$LNCLIENT \
     -lnd-host=$LNDHOST \
@@ -51,4 +63,5 @@ fi
     -bitcoind-user=$BTCRPCUSER \
     -bitcoind-pass=$BTCRPCPASS \
     -bitcoind-port=$BTCRPCPORT \
+    -users-file=$USERSFILE \
     -static-dir=$STATICDIR
