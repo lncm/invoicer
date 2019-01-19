@@ -415,6 +415,11 @@ func history(c *gin.Context) {
 		history = append(history, payment)
 	}
 
+	// reverse order before returning (newest on top)
+	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+		history[i], history[j] = history[j], history[i]
+	}
+
 	c.JSON(200, struct {
 		History []common.Payment `json:"history"`
 		Error   string           `json:"error,omitempty"`
