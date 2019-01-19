@@ -464,14 +464,7 @@ func main() {
 	router.Use(cors.Default())
 	router.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	var middleware []gin.HandlerFunc
-	if len(accounts) > 0 {
-		middleware = append(middleware, gin.BasicAuth(accounts))
-	} else if len(*usersFile) != 0 {
-		panic("users.list passed, but no accounts detected")
-	}
-
-	r := router.Group("/api", middleware...)
+	r := router.Group("/api")
 	r.POST("/payment", newPayment)
 	r.GET("/payment", status)
 	r.GET("/info", info)
@@ -479,7 +472,10 @@ func main() {
 
 	// history only available if Basic Auth is enabled
 	if len(accounts) > 0 {
-		r.GET("/history", history)
+		r.GET("/history", gin.BasicAuth(accounts), history)
+
+	} else if len(*usersFile) != 0 {
+		panic("users.list passed, but no accounts detected")
 	}
 
 	if *staticDir != "" {
