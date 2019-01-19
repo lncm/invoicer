@@ -1,0 +1,5 @@
+bin/*
+/readonly.macaroon
+/invoice.macaroon
+/tls.cert
+/users.list
