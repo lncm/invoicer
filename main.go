@@ -320,6 +320,7 @@ func status(c *gin.Context) {
 		}()
 	}
 
+	// blocks until first channel message is received
 	status := <-paymentStatus
 
 	if status == nil {
@@ -336,7 +337,6 @@ func status(c *gin.Context) {
 }
 
 // TODO: pagination
-// TODO: only paid
 // TODO: limit
 func history(c *gin.Context) {
 	var queryParams struct {

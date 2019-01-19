@@ -10,6 +10,7 @@ WORKDIR /src/
 RUN git config --global http.sslVerify false
 RUN make bin/invoicer
 
+
 # Start a new, final image.
 FROM alpine as final
 
