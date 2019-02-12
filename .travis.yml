@@ -1,0 +1,35 @@
+sudo: required
+
+dist: xenial
+
+services:
+  - docker
+
+env:
+  matrix:
+    - ARCH=arm
+    - ARCH=amd64
+
+language: bash
+
+before_install:
+  - mkdir -p ~/.docker
+  - >
+    echo '{ "experimental": "enabled" }' > ~/.docker/config.json
+  - sudo systemctl restart docker
+  - docker version
+
+before_script:
+  - >
+    if [ "${ARCH}" = "arm" ]; then
+      sed -ie 's/FROM alpine/FROM arm32v6\/alpine/g' Dockerfile
+      echo "Dockerfile modified"
+    fi
+
+script:
+  - docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" 0.5/
+  - >
+    if [ -n "${TRAVIS_TAG}" ]; then
+      travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
+      ./travis-deploy.sh "${ARCH}"
+    fi
