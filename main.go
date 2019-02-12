@@ -421,22 +421,6 @@ func info(c *gin.Context) {
 	c.JSON(200, info.Uris)
 }
 
-func healthCheck(c *gin.Context) {
-	_, err := btcClient.BlockCount()
-	if err != nil {
-		c.String(500, err.Error())
-		return
-	}
-
-	_, err = lnClient.Info(c)
-	if err != nil {
-		c.String(500, err.Error())
-		return
-	}
-
-	c.Status(200)
-}
-
 func main() {
 	//gin.SetMode(gin.ReleaseMode)
 
@@ -448,7 +432,6 @@ func main() {
 	r.POST("/payment", newPayment)
 	r.GET("/payment", status)
 	r.GET("/info", info)
-	r.GET("/healthcheck", healthCheck)
 
 	// history only available if Basic Auth is enabled
 	if len(accounts) > 0 {

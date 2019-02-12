@@ -142,6 +142,32 @@ func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error
 	return
 }
 
+func checkStatus(lnd Lnd) {
+	failures := 0
+
+	for {
+		failures++
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := lnd.Info(ctx)
+		if err == nil {
+			failures = 0
+		}
+
+		cancel()
+
+		if failures > 3 {
+			panic("lnd unreachable: suicide")
+		}
+
+		if failures > 0 {
+			fmt.Printf("lnd unreachable: %d times\n", failures)
+		}
+
+		time.Sleep(time.Minute)
+	}
+}
+
 func getClient(creds credentials.TransportCredentials, fullHostname, file string) lnrpc.LightningClient {
 	macaroonBytes, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -168,7 +194,7 @@ func getClient(creds credentials.TransportCredentials, fullHostname, file string
 	return lnrpc.NewLightningClient(connection)
 }
 
-func New(conf common.Lnd) Lnd {
+func New(conf common.Lnd) (lnd Lnd) {
 	if conf.Host == "" {
 		conf.Host = DefaultHostname
 	}
@@ -199,8 +225,14 @@ func New(conf common.Lnd) Lnd {
 
 	hostname := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
-	return Lnd{
+	lnd = Lnd{
 		getClient(creds, hostname, conf.Macaroons.Invoice),
 		getClient(creds, hostname, conf.Macaroons.ReadOnly),
 	}
+
+	// TODO: start goroutine subscribing to invoice status changes
+
+	go checkStatus(lnd)
+
+	return
 }
