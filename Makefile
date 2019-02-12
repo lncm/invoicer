@@ -1,6 +1,6 @@
-VERSION = v0.2.0
+VERSION = 0.2.0
 
-VERSION_STAMP="main.version=$(VERSION)"
+VERSION_STAMP="main.version=v$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
 BUILD_FLAGS="-X ${VERSION_STAMP} -X ${VERSION_HASH}"
 
@@ -28,7 +28,7 @@ run: $(SRC)
 	go run main.go
 
 tag:
-	git tag -sa $(VERSION) -m "$(VERSION)"
+	git tag -sa $(VERSION) -m "v$(VERSION)"
 
 all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
 
