@@ -27,7 +27,7 @@ make run
 ``` 
 
 Usage
----
+-----
 
 ```
 $ ./invoicer --help
@@ -45,6 +45,22 @@ Usage of bin/invoicer:
 * By default all API paths start with `localhost:8080/api/`,
 * By default all other paths serve content from path passed as `static-dir = `, 
 * To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice
+
+Docker
+------
+
+Create `invoicer.conf` file in the directory you're in. See `invoicer.example.conf` for inspiration.
+
+Run:
+
+```bash
+docker run -it --rm \
+    -v .:/root/.lnd/ \
+    -p 8080:8080 \
+    --name invoicer \
+    --detach \
+    invoicer:latest
+```
 
 API
 ---
