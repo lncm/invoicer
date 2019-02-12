@@ -35,21 +35,19 @@ RUN apk add --no-cache --update bash \
 # Copy the binaries from the builder image.
 COPY --from=builder /src/bin/invoicer /bin/
 
-# Copy entrypoint
-COPY entrypoint-invoicer.sh /bin/
 # Copy healthcheck script
 COPY check-invoicer.sh /bin/
 
-RUN chmod 755 /bin/entrypoint-invoicer.sh
 RUN chmod 755 /bin/check-invoicer.sh
 
 # Expose Invoicer port
 EXPOSE 8080
 
-# Health Check line 
+# Health Check line
 HEALTHCHECK --interval=30s --timeout=15s --retries=15 \
     CMD /bin/check-invoicer.sh || exit 1
 
-# Invoicer Entrypoint
-ENTRYPOINT entrypoint-invoicer.sh
+# Specify the start command and entrypoint as the invoicer daemon.
+ENTRYPOINT ["invoicer"]
+CMD ["invoicer"]
 
