@@ -30,49 +30,26 @@ Usage
 ```
 $ ./invoicer --help
 Usage of bin/invoicer:
-  -bitcoind-host string
-    	Specify hostname where your bitcoind is available (default "localhost")
-  -bitcoind-pass string
-    	RPC password for bitcoind
-  -bitcoind-port int
-    	Port on which bitcoind is listening (default 8332)
-  -bitcoind-user string
-    	RPC user for bitcoind (default "invoicer")
-  -index-file string
-    	pass path to a default index file (default "static/index.html")
-  -ln-client string
-    	specify which LN implementation should be used. Allowed: lnd and clightning (default "lnd")
-  -lnd-host string
-    	Specify hostname where your lnd is available (default "localhost")
-  -lnd-invoice string
-    	Specify path to invoice.macaroon file (default "invoice.macaroon")
-  -lnd-port int
-    	Port on which lnd is listening (default 10009)
-  -lnd-readonly string
-    	Specify path to readonly.macaroon file (default "readonly.macaroon")
-  -lnd-tls string
-    	Specify path to tls.cert file (default "tls.cert")
-  -port int
-    	specify port to serve the website & API at (default 8080)
-  -static-dir string
-    	pass path to a dir containing static files to be served
-  -users-file string
-    	path to a file with acceptable user passwords
+  -config string
+    	Path to a config file in TOML format (default "~/.invoicer/invoicer.conf")
 ```
 
+**NOTE:** Before running make sure `invoicer.conf` exists somewhere.  To see what it expects please refer to `invoicer.example.conf` file.
+
+
 * Provide all credentials needed by LND and bitcoind,
-* Make sure the certificate provided via `-lnd-tls` has used domain/IP added,
-* To have `GET /history` endpoint available, make sure to pass `-users-file` path to a file containing space delimited username password pairs. Each line should contain one pair,
+* Make sure the certificate provided via `tls = ` in `[lnd]` section has your domain/IP added,
+* To have `GET /history` endpoint available, make sure to add `user = "password"` pairs to `[users]` section,
 * By default all API paths start with `localhost:8080/api/`,
-* By default all other paths serve content from path passed as `-static-dir`, 
-* To keep binary running use `screen`, `tmux` or service manager of your choice
+* By default all other paths serve content from path passed as `static-dir = `, 
+* To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice
 
 API
 ---
 
 ## `GET /`
 
-If `-static-dir` passed, serves `index.html` located within there. Otherwise 404. 
+If `static-dir =` passed, serves `index.html` located within there. Otherwise 404. 
 
 ## `GET /api/info`
 
@@ -322,7 +299,7 @@ To deploy the binary to your Raspberry Pi, run (replacing all values with ones s
 $ make deploy REMOTE_USER=root REMOTE_HOST=pi-hdd REMOTE_DIR=/home/ln/bin/ 
 ``` 
 
-If you want to expose tips page (`common/index.html`), make sure to expose port `:1666` on your firewall. The page will be located at path root. 
+If you want to expose tips page (`common/index.html`), make sure to expose port `:8080` on your firewall. The page will be located at path root. 
 
 
 Development
