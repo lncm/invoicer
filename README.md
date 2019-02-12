@@ -1,6 +1,8 @@
 invoicer
 ========
 
+[![Build Status](https://travis-ci.com/lncm/invoicer.svg?branch=master)](https://travis-ci.com/lncm/invoicer) ![](https://img.shields.io/microbadger/image-size/lncm/invoicer/0.2.0.svg?style=flat) ![](https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat)
+
 > _"fiat is irrelephant 🐘"_
 
 ### Exposes simple authenticated API on top of LND
