@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -12,9 +11,9 @@ import (
 	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/lnd"
+	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"gopkg.in/go-playground/validator.v9"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -38,18 +37,17 @@ type (
 	}
 )
 
+const DefaultInvoicerPort = 8080
+
 var (
 	version,
 	gitHash string
 
 	lnClient  LightningClient
 	btcClient BitcoinClient
+	conf      common.Config
 
-	usersFile    = flag.String("users-file", "", "path to a file with acceptable user passwords")
-	lnClientName = flag.String("ln-client", lnd.ClientName, "specify which LN implementation should be used. Allowed: lnd and clightning")
-
-	staticDir = flag.String("static-dir", "", "pass path to a dir containing static files to be served")
-	port      = flag.Int64("port", 8080, "specify port to serve the website & API at")
+	configFilePath = flag.String("config", common.DefaultConfigFile, "Path to a config file in TOML format")
 
 	accounts gin.Accounts
 )
@@ -57,64 +55,46 @@ var (
 func init() {
 	flag.Parse()
 
+	// Expand configFile file path and load it
+	configFile, err := toml.LoadFile(common.CleanAndExpandPath(*configFilePath))
+	if err != nil {
+		panic(fmt.Sprintf("unable to load %s:\n\t%v", *configFilePath, err))
+	}
+
+	err = configFile.Unmarshal(&conf)
+	if err != nil {
+		panic(fmt.Sprintf("unable to process %s:\n\t%v", *configFilePath, err))
+	}
+
+	// Use lnd when no client is specified
+	if conf.LnClient == "" {
+		conf.LnClient = lnd.ClientName
+	}
+
 	// init specified LN client
-	switch strings.ToLower(*lnClientName) {
+	switch strings.ToLower(conf.LnClient) {
 	case lnd.ClientName:
-		lnClient = lnd.New()
+		lnClient = lnd.New(conf.Lnd)
 
 	case cLightning.ClientName:
 		//lnClient = cLightning.New()
 
 	default:
-		panic("invalid LN client specified")
+		panic(fmt.Sprintf("invalid ln-client specified: %s", conf.LnClient))
 	}
 
 	// init  BTC client for monitoring on-chain payments
-	btcClient = bitcoind.New()
+	btcClient = bitcoind.New(conf.Bitcoind)
 
 	versionString := "debug"
 	if version != "" && gitHash != "" {
 		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
 	}
 
-	fmt.Printf("version: %s\nLN client: %s\n\n", versionString, *lnClientName)
+	fmt.Printf("version: %s\nLN client: %s\n\n", versionString, conf.LnClient)
 
-	if usersFile != nil && len(*usersFile) > 0 {
-		f, err := os.Open(*usersFile)
-		if err != nil {
-			fmt.Printf("Error: list of users for Basic Authentication not found at %s\n\n", *usersFile)
-			fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
-			os.Exit(1)
-		}
-
-		defer func() {
-			err = f.Close()
-			if err != nil {
-				fmt.Println(errors.Wrap(err, "error closing users file"))
-			}
-		}()
-
-		accounts = make(gin.Accounts)
-
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			rawLine := scanner.Text()
-			line := strings.Split(rawLine, " ")
-
-			if len(line) != 2 || len(line[0]) == 0 || len(line[1]) == 0 {
-				fmt.Printf("Error: can't read list of users for Basic Authentication from %s\n", *usersFile)
-				fmt.Printf("Error found in line: \"%s\"\n\n", rawLine)
-				fmt.Printf("Create a file (%s) in a format of:\n\n<user1> <password>\n<user2> <password>\n\nOr specify different path to the file using --users-file= flag\n", common.DefaultUsersFile)
-				os.Exit(1)
-			}
-
-			accounts[line[0]] = line[1]
-		}
-
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("Error: can't read file %s: %v", *usersFile, err)
-			os.Exit(1)
-		}
+	if len(conf.Users) > 0 {
+		accounts = gin.Accounts(conf.Users)
 	}
 }
 
@@ -473,16 +453,17 @@ func main() {
 	// history only available if Basic Auth is enabled
 	if len(accounts) > 0 {
 		r.GET("/history", gin.BasicAuth(accounts), history)
-
-	} else if len(*usersFile) != 0 {
-		panic("users.list passed, but no accounts detected")
 	}
 
-	if *staticDir != "" {
-		router.StaticFile("/", path.Join(*staticDir, "index.html"))
+	if conf.StaticDir != "" {
+		router.StaticFile("/", path.Join(conf.StaticDir, "index.html"))
 	}
 
-	err := router.Run(fmt.Sprintf(":%d", *port))
+	if conf.Port == 0 {
+		conf.Port = DefaultInvoicerPort
+	}
+
+	err := router.Run(fmt.Sprintf(":%d", conf.Port))
 	if err != nil {
 		panic(err)
 	}

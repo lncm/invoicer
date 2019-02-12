@@ -1,9 +1,11 @@
 package common
 
-import "time"
+import (
+	"time"
+)
 
 const (
-	DefaultUsersFile     = "./users.list"
+	DefaultConfigFile    = "~/.invoicer/invoicer.conf"
 	DefaultInvoiceExpiry = 180
 	MaxInvoiceDescLen    = 639
 )

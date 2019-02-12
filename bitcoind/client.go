@@ -3,7 +3,6 @@ package bitcoind
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/lncm/invoicer/common"
 	"github.com/pkg/errors"
@@ -12,19 +11,16 @@ import (
 )
 
 const (
+	DefaultHostname = "localhost"
+	DefaultPort     = 8332
+	DefaultUsername = "invoicer"
+
 	MethodGetBlockCount        = "getblockcount"
 	MethodGetNewAddress        = "getnewaddress"
 	MethodImportAddress        = "importaddress"
 	MethodListReceiveByAddress = "listreceivedbyaddress"
 
 	Bech32 = "bech32"
-)
-
-var (
-	hostname = flag.String("bitcoind-host", "localhost", "Specify hostname where your bitcoind is available")
-	port     = flag.Int64("bitcoind-port", 8332, "Port on which bitcoind is listening")
-	user     = flag.String("bitcoind-user", "invoicer", "RPC user for bitcoind")
-	pass     = flag.String("bitcoind-pass", "", "RPC password for bitcoind")
 )
 
 type (
@@ -134,10 +130,22 @@ func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []
 	return resBody.Result, nil
 }
 
-func New() Bitcoind {
+func New(conf common.Bitcoind) Bitcoind {
+	if conf.Host == "" {
+		conf.Host = DefaultHostname
+	}
+
+	if conf.Port == 0 {
+		conf.Port = DefaultPort
+	}
+
+	if conf.User == "" {
+		conf.User = DefaultUsername
+	}
+
 	return Bitcoind{
-		url:  fmt.Sprintf("http://%s:%d", *hostname, *port),
-		user: *user,
-		pass: *pass,
+		url:  fmt.Sprintf("http://%s:%d", conf.Host, conf.Port),
+		user: conf.User,
+		pass: conf.Pass,
 	}
 }

@@ -3,7 +3,6 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
@@ -16,20 +15,20 @@ import (
 	"time"
 )
 
-const ClientName = "lnd"
+const (
+	ClientName = "lnd"
+
+	DefaultHostname = "localhost"
+	DefaultPort     = 10009
+	DefaultTls      = "./tls.cert"
+	DefaultInvoice  = "./invoice.macaroon"
+	DefaultReadOnly = "./readonly.macaroon"
+)
 
 type Lnd struct {
 	invoiceClient  lnrpc.LightningClient
 	readOnlyClient lnrpc.LightningClient
 }
-
-var (
-	hostname         = flag.String("lnd-host", "localhost", "Specify hostname where your lnd is available")
-	port             = flag.Int64("lnd-port", 10009, "Port on which lnd is listening")
-	tlsCert          = flag.String("lnd-tls", "tls.cert", "Specify path to tls.cert file")
-	invoiceMacaroon  = flag.String("lnd-invoice", "invoice.macaroon", "Specify path to invoice.macaroon file")
-	readOnlyMacaroon = flag.String("lnd-readonly", "readonly.macaroon", "Specify path to readonly.macaroon file")
-)
 
 func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoice, hash string, err error) {
 	inv, err := lnd.invoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
@@ -143,7 +142,7 @@ func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error
 	return
 }
 
-func getClient(creds credentials.TransportCredentials, file string) lnrpc.LightningClient {
+func getClient(creds credentials.TransportCredentials, fullHostname, file string) lnrpc.LightningClient {
 	macaroonBytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		panic(fmt.Sprintln("Cannot read macaroon file", err))
@@ -157,26 +156,51 @@ func getClient(creds credentials.TransportCredentials, file string) lnrpc.Lightn
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	connection, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", *hostname, *port), []grpc.DialOption{
+	connection, err := grpc.DialContext(ctx, fullHostname, []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBlock(),
 		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
 	}...)
 	if err != nil {
-		panic(errors.Wrapf(err, "unable to connect to %s:%d", *hostname, *port))
+		panic(errors.Wrapf(err, "unable to connect to %s", fullHostname))
 	}
 
 	return lnrpc.NewLightningClient(connection)
 }
 
-func New() Lnd {
-	creds, err := credentials.NewClientTLSFromFile(*tlsCert, *hostname)
+func New(conf common.Lnd) Lnd {
+	if conf.Host == "" {
+		conf.Host = DefaultHostname
+	}
+
+	if conf.Port == 0 {
+		conf.Port = DefaultPort
+	}
+
+	if conf.Tls == "" {
+		conf.Tls = DefaultTls
+	}
+	conf.Tls = common.CleanAndExpandPath(conf.Tls)
+
+	if conf.Macaroons.Invoice == "" {
+		conf.Macaroons.Invoice = DefaultInvoice
+	}
+	conf.Macaroons.Invoice = common.CleanAndExpandPath(conf.Macaroons.Invoice)
+
+	if conf.Macaroons.ReadOnly == "" {
+		conf.Macaroons.ReadOnly = DefaultReadOnly
+	}
+	conf.Macaroons.ReadOnly = common.CleanAndExpandPath(conf.Macaroons.ReadOnly)
+
+	creds, err := credentials.NewClientTLSFromFile(conf.Tls, conf.Host)
 	if err != nil {
 		panic(err)
 	}
 
+	hostname := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
+
 	return Lnd{
-		getClient(creds, *invoiceMacaroon),
-		getClient(creds, *readOnlyMacaroon),
+		getClient(creds, hostname, conf.Macaroons.Invoice),
+		getClient(creds, hostname, conf.Macaroons.ReadOnly),
 	}
 }
