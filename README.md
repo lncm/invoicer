@@ -55,11 +55,11 @@ Run:
 
 ```bash
 docker run -it --rm \
-    -v .:/root/.lnd/ \
+    -v $(pwd)/:/root/.invoicer/ \
     -p 8080:8080 \
     --name invoicer \
     --detach \
-    invoicer:latest
+    lncm/invoicer:latest
 ```
 
 API
