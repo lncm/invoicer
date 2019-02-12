@@ -25,7 +25,7 @@ bin/invoicer-openbsd-amd64: $(SRC)
 	env GOOS=openbsd GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
 
 run: $(SRC)
-	GRPC_GO_RETRY=on go run main.go
+	go run main.go
 
 tag:
 	git tag -sa $(VERSION) -m "$(VERSION)"
