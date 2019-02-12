@@ -6,4 +6,4 @@ users.list
 
 *.macaroon
 tls.cert
-
+invoicer.conf
