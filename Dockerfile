@@ -28,12 +28,6 @@ FROM alpine:3.9 as final
 RUN apk add --no-cache --update bash \
     curl
 
-# Create directory for data assets
-RUN mkdir /static/
-
-# TODO: switch this to invoicer-ui building stage
-COPY --from=builder /src/static/ /static/
-
 # Copy the binaries from the builder image.
 COPY --from=builder /src/bin/invoicer /bin/
 
