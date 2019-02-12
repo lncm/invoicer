@@ -7,7 +7,17 @@ RUN mkdir -p /src/
 COPY ./ /src/
 WORKDIR /src/
 
-RUN git config --global http.sslVerify false
+ARG goos
+ENV GOOS ${goos}
+
+ARG goarch
+ENV GOARCH ${goarch}
+
+ARG goarm=6
+ENV GOARM ${goarm}
+
+RUN echo "GOOS:${GOOS} GOARCH:${GOARCH} GOARM:${GOARM}"
+
 RUN make bin/invoicer
 
 
