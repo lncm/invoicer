@@ -49,7 +49,7 @@ Usage of bin/invoicer:
 Docker
 ------
 
-Create `invoicer.conf` file in the directory you're in. See `invoicer.example.conf` for inspiration.
+Create `invoicer.conf` file in the directory you're in. See `invoicer.example.conf` for inspiration.  Also copy `tls.cert`, `invoice.macaroon`, and `readonly.macaroon` from lnd directory to the dir you're in, and:
 
 Run:
 
