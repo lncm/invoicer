@@ -5,4 +5,7 @@ bin/*
 /tls.cert
 /users.list
 /invoicer.conf
+/invoicer.example.conf
 /static/*
+/.travis.yml
+/travis-deploy.sh
