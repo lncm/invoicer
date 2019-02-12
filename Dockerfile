@@ -1,4 +1,4 @@
-FROM golang:alpine as builder
+FROM golang:1.11-alpine3.9 as builder
 
 RUN apk add --no-cache --update alpine-sdk \
     make
@@ -12,7 +12,7 @@ RUN make bin/invoicer
 
 
 # Start a new, final image.
-FROM alpine as final
+FROM alpine:3.9 as final
 
 # Required for endpoints and healthcheck
 RUN apk add --no-cache --update bash \
