@@ -27,7 +27,7 @@ before_script:
     fi
 
 script:
-  - docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" 0.5/
+  - docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
   - >
     if [ -n "${TRAVIS_TAG}" ]; then
       travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
