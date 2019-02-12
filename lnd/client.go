@@ -20,9 +20,9 @@ const (
 
 	DefaultHostname = "localhost"
 	DefaultPort     = 10009
-	DefaultTls      = "./tls.cert"
-	DefaultInvoice  = "./invoice.macaroon"
-	DefaultReadOnly = "./readonly.macaroon"
+	DefaultTls      = "~/.invoicer/tls.cert"
+	DefaultInvoice  = "~/.invoicer/invoice.macaroon"
+	DefaultReadOnly = "~/.invoicer/readonly.macaroon"
 )
 
 type Lnd struct {
