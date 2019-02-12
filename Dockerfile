@@ -1,7 +1,8 @@
 FROM golang:1.11-alpine3.9 as builder
 
 RUN apk add --no-cache --update alpine-sdk \
-    make
+    make \
+    upx
 
 RUN mkdir -p /src/
 COPY ./ /src/
@@ -19,6 +20,9 @@ ENV GOARM ${goarm}
 RUN echo "GOOS:${GOOS} GOARCH:${GOARCH} GOARM:${GOARM}"
 
 RUN make bin/invoicer
+
+# compress output binary
+RUN upx /src/bin/invoicer
 
 
 # Start a new, final image.
