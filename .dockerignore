@@ -5,3 +5,4 @@ bin/*
 /tls.cert
 /users.list
 /invoicer.conf
+/static/*
