@@ -4,6 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -14,9 +18,6 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"gopkg.in/go-playground/validator.v9"
-	"path"
-	"strings"
-	"time"
 )
 
 type (
@@ -102,6 +103,7 @@ func newPayment(c *gin.Context) {
 	var data struct {
 		Amount      int64  `json:"amount"`
 		Description string `json:"desc"`
+		Only        string `json:"only"`
 	}
 
 	err := c.ShouldBindJSON(&data)
@@ -112,55 +114,66 @@ func newPayment(c *gin.Context) {
 		return
 	}
 
-	if len(data.Description) > common.MaxInvoiceDescLen {
+	if data.Only != "" && data.Only != "btc" && data.Only != "ln" {
 		c.AbortWithStatusJSON(400, gin.H{
-			"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxInvoiceDescLen),
+			"error": "only= is an optional parameter that can only take `btc` and `ln` as values",
 		})
 		return
 	}
 
 	var payment common.NewPayment
 
-	// Generate new LN invoice
-	payment.Bolt11, payment.Hash, err = lnClient.NewInvoice(c, data.Amount, data.Description)
-	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
-		})
-		return
+	if data.Only != "btc" {
+		if len(data.Description) > common.MaxInvoiceDescLen {
+			c.AbortWithStatusJSON(400, gin.H{
+				"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxInvoiceDescLen),
+			})
+			return
+		}
+
+		// Generate new LN invoice
+		payment.Bolt11, payment.Hash, err = lnClient.NewInvoice(c, data.Amount, data.Description)
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{
+				"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
+			})
+			return
+		}
+
+		// Extract invoice's creation date & expiry
+		invoice, err := lnClient.Status(c, payment.Hash)
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{
+				"error": errors.WithMessage(err, "can't get LN invoice").Error(),
+			})
+			return
+		}
+		payment.CreatedAt = invoice.Ts
+		payment.Expiry = invoice.Expiry
 	}
 
-	// Extract invoice's creation date & expiry
-	invoice, err := lnClient.Status(c, payment.Hash)
-	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": errors.WithMessage(err, "can't get LN invoice").Error(),
-		})
-		return
-	}
-	payment.CreatedAt = invoice.Ts
-	payment.Expiry = invoice.Expiry
+	if data.Only != "ln" {
+		// get BTC address
+		payment.Address, err = lnClient.Address(c, false)
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{
+				"error": errors.WithMessage(err, "can't get Bitcoin address").Error(),
+			})
+			return
+		}
 
-	// get BTC address
-	payment.Address, err = lnClient.Address(c, false)
-	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": errors.WithMessage(err, "can't get Bitcoin address").Error(),
-		})
-		return
-	}
+		label := data.Description
+		if len(payment.Hash) > 0 {
+			label = payment.Hash
+		}
 
-	label := data.Description
-	if len(payment.Hash) > 0 {
-		label = payment.Hash
-	}
-
-	err = btcClient.ImportAddress(payment.Address, label)
-	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": fmt.Sprintf("can't import address (%s) to Bitcoin node: %v", payment.Address, err),
-		})
-		return
+		err = btcClient.ImportAddress(payment.Address, label)
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{
+				"error": fmt.Sprintf("can't import address (%s) to Bitcoin node: %v", payment.Address, err),
+			})
+			return
+		}
 	}
 
 	c.JSON(200, payment)
