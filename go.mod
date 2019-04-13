@@ -22,6 +22,7 @@ require (
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/errors v0.8.0
 	github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af // indirect
+	github.com/sirupsen/logrus v1.4.1
 	github.com/ugorji/go/codec v0.0.0-20181127175209-856da096dbdf // indirect
 	google.golang.org/genproto v0.0.0-20181127195345-31ac5d88444a // indirect
 	google.golang.org/grpc v1.16.0

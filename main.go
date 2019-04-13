@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -36,6 +38,8 @@ type (
 		StatusWait(ctx context.Context, hash string) (common.Status, error)
 		History(ctx context.Context) (common.Invoices, error)
 	}
+
+	lnStatusFn func(c context.Context, hash string) (common.Status, error)
 )
 
 const DefaultInvoicerPort = 8080
@@ -92,11 +96,21 @@ func init() {
 		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
 	}
 
-	fmt.Printf("version: %s\nLN client: %s\n\n", versionString, conf.LnClient)
-
 	if len(conf.Users) > 0 {
 		accounts = gin.Accounts(conf.Users)
 	}
+
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+
+	log.WithFields(log.Fields{
+		"version":   versionString,
+		"client":    conf.LnClient,
+		"users":     len(conf.Users),
+		"conf-file": *configFilePath,
+	}).Println("invoicer started")
 }
 
 func newPayment(c *gin.Context) {
@@ -179,32 +193,33 @@ func newPayment(c *gin.Context) {
 	c.JSON(200, payment)
 }
 
-func checkLn(ctx context.Context, hash string) *common.StatusReply {
-	lnStatus, err := lnClient.StatusWait(ctx, hash)
+func checkLnStatus(c context.Context, hash string, statusFn lnStatusFn) *common.StatusReply {
+	status, err := statusFn(c, hash)
 	if err != nil {
+		// TODO: ESSENTIAL(!) handle case where context gets cancelled
 		return &common.StatusReply{
 			Code:  500,
 			Error: fmt.Sprintf("unable to fetch invoice: %s", err),
 		}
 	}
 
-	if lnStatus.Settled {
+	if status.Settled {
 		return &common.StatusReply{
-			Code: 200, Ln: &lnStatus,
+			Code: 200, Ln: &status,
 		}
 	}
 
-	if lnStatus.IsExpired() {
+	if status.IsExpired() {
 		return &common.StatusReply{
 			Code:  408,
 			Error: "expired",
 		}
 	}
 
-	return nil
+	return &common.StatusReply{Ln: &status}
 }
 
-func checkBtc(fin time.Time, addr string, lnProvided bool, desiredAmount int64) *common.StatusReply {
+func checkBtcStatus(fin time.Time, addr string, lnProvided, flexible bool, desiredAmount int64) *common.StatusReply {
 	for time.Now().Before(fin) {
 		time.Sleep(2 * time.Second)
 
@@ -231,7 +246,7 @@ func checkBtc(fin time.Time, addr string, lnProvided bool, desiredAmount int64) 
 		// no need to return it now; might be useful later
 		btcStatus.Label = ""
 
-		if desiredAmount == receivedAmount {
+		if flexible || desiredAmount == receivedAmount {
 			return &common.StatusReply{
 				Code:    200,
 				Bitcoin: &btcStatus,
@@ -243,7 +258,6 @@ func checkBtc(fin time.Time, addr string, lnProvided bool, desiredAmount int64) 
 				Code:    202,
 				Bitcoin: &btcStatus,
 			}
-
 		}
 
 		if desiredAmount > receivedAmount {
@@ -258,9 +272,33 @@ func checkBtc(fin time.Time, addr string, lnProvided bool, desiredAmount int64) 
 	return nil
 }
 
+func replyStatus(c *gin.Context, status common.StatusReply) {
+	if status.Code >= 300 {
+		c.AbortWithStatusJSON(status.Code, status)
+		return
+	}
+
+	c.JSON(status.Code, status)
+}
+
 func status(c *gin.Context) {
-	hash := c.Query("hash")
-	addr := c.Query("address")
+	var queryParams struct {
+		Hash     string `form:"hash"`
+		Addr     string `form:"address"`
+		Flexible bool   `form:"flexible"`
+	}
+
+	err := c.BindQuery(&queryParams)
+	if err != nil {
+		c.AbortWithStatusJSON(400, common.StatusReply{
+			Error: fmt.Sprintf("invalid request: %v", err),
+		})
+		return
+	}
+
+	hash := queryParams.Hash
+	addr := queryParams.Addr
+	flexible := queryParams.Flexible
 
 	if len(hash) == 0 && len(addr) == 0 {
 		c.AbortWithStatusJSON(500, common.StatusReply{
@@ -270,63 +308,56 @@ func status(c *gin.Context) {
 	}
 
 	var desiredAmount int64
+	fin := time.Now().Add(common.DefaultInvoiceExpiry * time.Second)
 
 	// do initial LN invoice check, and adjust expiration if available
-	fin := time.Now().Add(common.DefaultInvoiceExpiry * time.Second)
 	if len(hash) > 0 {
-		lnStatus, err := lnClient.Status(c, hash)
-		if err != nil {
-			c.AbortWithStatusJSON(500, common.StatusReply{
-				Error: fmt.Sprintf("unable to fetch invoice: %s", err),
-			})
+		status := checkLnStatus(c, hash, lnClient.Status)
+		if status.Code > 0 {
+			replyStatus(c, *status)
 			return
 		}
 
-		if lnStatus.Settled {
-			c.JSON(200, common.StatusReply{Ln: &lnStatus})
-			return
-		}
-
-		if lnStatus.IsExpired() {
-			c.AbortWithStatusJSON(408, common.StatusReply{Error: "expired"})
-			return
-		}
-
-		fin = time.Unix(lnStatus.Ts, 0).Add(time.Duration(lnStatus.Expiry) * time.Second)
-		desiredAmount = lnStatus.Value
+		fin = time.Unix(status.Ln.Ts, 0).Add(time.Duration(status.Ln.Expiry) * time.Second)
+		desiredAmount = status.Ln.Value
 	}
 
-	ctx, cancel := context.WithDeadline(c, fin)
-	defer cancel()
-
 	paymentStatus := make(chan *common.StatusReply)
+
+	// subscribe to LN invoice status changes
 	if len(hash) > 0 {
 		go func() {
-			paymentStatus <- checkLn(ctx, hash)
+			paymentStatus <- checkLnStatus(c, hash, lnClient.StatusWait)
 		}()
 	}
 
 	// keep polling for status update every N seconds
 	if len(addr) > 0 {
 		go func() {
-			paymentStatus <- checkBtc(fin, addr, len(hash) > 0, desiredAmount)
+			paymentStatus <- checkBtcStatus(fin, addr, len(hash) > 0, flexible, desiredAmount)
 		}()
 	}
 
-	// blocks until first channel message is received
-	status := <-paymentStatus
+	ctx, cancel := context.WithDeadline(c, fin)
+	defer cancel()
 
-	if status == nil {
-		c.AbortWithStatusJSON(500, common.StatusReply{Error: "unknown error"})
+	for {
+		var status *common.StatusReply
+
+		// block until first channel message is received
+		select {
+		case <-ctx.Done():
+			status = &common.StatusReply{
+				Code:  408,
+				Error: "expired",
+			}
+
+		case status = <-paymentStatus:
+		}
+
+		replyStatus(c, *status)
 		return
 	}
-
-	if status.Code < 300 {
-		c.JSON(status.Code, status)
-		return
-	}
-
-	c.AbortWithStatusJSON(status.Code, status)
 }
 
 // TODO: pagination

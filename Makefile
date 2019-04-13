@@ -1,4 +1,4 @@
-VERSION = 0.2.2
+VERSION = 0.2.3
 
 VERSION_STAMP="main.version=v$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
@@ -32,18 +32,14 @@ tag:
 
 all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
 
-static/index.html:
-	wget -P static -N https://raw.githubusercontent.com/lncm/invoicer-ui/master/dist/index.html
-
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
-deploy: bin/invoicer-linux-arm static/index.html
+deploy: bin/invoicer-linux-arm
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
-	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 
 clean:
 	rm -rf bin/*
 
-.PHONY: run tag all deploy clean static/index.html
+.PHONY: run tag all deploy clean
 

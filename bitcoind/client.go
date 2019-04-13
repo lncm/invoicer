@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/lncm/invoicer/common"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/lncm/invoicer/common"
+	"github.com/pkg/errors"
 )
 
 const (

@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/lncm/invoicer/common"
@@ -11,8 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	"time"
 )
 
 const (
@@ -43,7 +46,7 @@ func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoi
 	return inv.PaymentRequest, hex.EncodeToString(inv.RHash), nil
 }
 
-// TODO: do not resubscribe on each request
+// TODO: do not resubscribe on each request(?)
 func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, err error) {
 	invSub, err := lnd.invoiceClient.SubscribeInvoices(ctx, &lnrpc.InvoiceSubscription{})
 	if err != nil {
@@ -58,11 +61,16 @@ func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, er
 		}
 
 		if hash == hex.EncodeToString(inv.RHash) {
+			val := inv.Value
+			if val == 0 {
+				val = inv.AmtPaidSat
+			}
+
 			return common.Status{
 				Ts:      inv.CreationDate,
 				Settled: inv.Settled,
 				Expiry:  inv.Expiry,
-				Value:   inv.Value,
+				Value:   val,
 			}, nil
 		}
 	}
@@ -142,7 +150,7 @@ func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error
 	return
 }
 
-func checkStatus(lnd Lnd) {
+func (lnd Lnd) checkStatus() {
 	failures := 0
 
 	for {
@@ -161,7 +169,7 @@ func checkStatus(lnd Lnd) {
 		}
 
 		if failures > 0 {
-			fmt.Printf("lnd unreachable: %d times\n", failures)
+			log.Printf("lnd unreachable: %d times\n", failures)
 		}
 
 		time.Sleep(time.Minute)
@@ -226,13 +234,12 @@ func New(conf common.Lnd) (lnd Lnd) {
 	hostname := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
 	lnd = Lnd{
-		getClient(creds, hostname, conf.Macaroons.Invoice),
-		getClient(creds, hostname, conf.Macaroons.ReadOnly),
+		invoiceClient:  getClient(creds, hostname, conf.Macaroons.Invoice),
+		readOnlyClient: getClient(creds, hostname, conf.Macaroons.ReadOnly),
 	}
 
 	// TODO: start goroutine subscribing to invoice status changes
-
-	go checkStatus(lnd)
+	go lnd.checkStatus()
 
 	return
 }
