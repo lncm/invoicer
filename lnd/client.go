@@ -165,11 +165,11 @@ func (lnd Lnd) checkStatus() {
 		cancel()
 
 		if failures > 3 {
-			panic("lnd unreachable: suicide")
+			log.WithField("count", failures).WithField("final", true).Panic("lnd unreachable")
 		}
 
 		if failures > 0 {
-			log.Printf("lnd unreachable: %d times\n", failures)
+			log.WithField("count", failures).Printf("lnd unreachable")
 		}
 
 		time.Sleep(time.Minute)
