@@ -35,9 +35,10 @@ all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
+REMOTE_STATIC ?= /home/ln/static/
 deploy: bin/invoicer-linux-arm
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
-	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
+	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_STATIC}"
 
 clean:
 	rm -rf bin/*
