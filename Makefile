@@ -41,6 +41,13 @@ bin/invoicer-$(VERSION)-openbsd-amd64.tgz: 	bin/openbsd-amd64/invoicer
 	tar -cvzf $@ $<
 
 
+static/index.html:
+	mkdir static
+	curl -s https://api.github.com/repos/lncm/donations/releases/latest \
+		| grep "browser_download_url.*html" \
+		| cut -d '"' -f 4 \
+		| wget -O $@ -qi -
+
 run: $(SRC)
 	go run main.go
 
@@ -59,12 +66,12 @@ REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
 REMOTE_DIR ?= /home/ln/bin/
 REMOTE_STATIC ?= /home/ln/static/
-deploy: bin/linux-arm/invoicer
+deploy: bin/linux-arm/invoicer static/index.html
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
 	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_STATIC}"
 
 clean:
 	rm -rf bin/*
 
-.PHONY: run tag all deploy clean ci
+.PHONY: run tag all deploy clean ci static/index.html
 
