@@ -18,6 +18,7 @@ jobs:
       env: ARCH=amd64
     - env: ARCH=arm
     - env: ARCH=
+    - stage: deploy
 
 
 before_script:
