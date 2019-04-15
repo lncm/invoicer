@@ -81,16 +81,19 @@ Returns an array of LN connstrings, ex:
 
 ## `POST /api/payment`
 
-Takes JSON body with two optional values:
+Takes JSON body with three optional values:
 
 ```json
 {
   "amount": 1000, 
-  "desc": "payment description, also set as LN invoice description"
+  "desc": "payment description, also set as LN invoice description",
+  "only": "btc|ln"
 }
 ```
 
-> **NOTE:** amount is in satoshis.
+> **NOTE:** `amount` is in satoshis.
+
+> **NOTE_2:** `only` if specified, can only be `btc` or `ln`.  
 
 Returns payment json in a form of:
 
@@ -118,10 +121,11 @@ On error, returns:
 
 #### Takes:
 
-* `hash` - hash of the preimage returned previously by the `POST /payment` endpoint
-* `address` - Bitcoin address returned previously by the `POST /payment` endpoint
+* `hash` (string) - hash of the preimage returned previously by the `POST /payment` endpoint
+* `address` (string) - Bitcoin address returned previously by the `POST /payment` endpoint
+* `flexible` (bool) - If set, will ignore amount checks.  Useful for accepting donations, where there's no "too much" or "too little". 
 
-> **NOTE:** providing just one will run checks on one network only.
+> **NOTE:** providing just one of `address` or `hash` will run checks on one network only.
 
 #### Returns:
 
@@ -163,6 +167,8 @@ On error, returns:
 
 ##### on BTC success w/too big amount (code 202)
 
+> **NOTE:** This can only happen if `flexible` is not set.
+
 ```json
 {
     "bitcoin": {
@@ -177,6 +183,8 @@ On error, returns:
 ``` 
 
 ##### on BTC success w/too small amount (code 402)
+
+> **NOTE:** This can only happen if `flexible` is not set.
 
 ```json
 {
@@ -298,15 +306,7 @@ On error, returns:
 }
 ```
 
-> **NOTE:** most recent invoice is on the bottom
-
-## `GET /api/healthcheck`
-
-Checks whether connections to lnd and bitcoind work.
-
-Returns code `200` if they do.
-
-Returns code `500`, and a text of the first found error, if they don't.  
+> **NOTE:** most recent invoice is on the bottom  
 
 Deployment
 ---
@@ -317,8 +317,9 @@ To deploy the binary to your Raspberry Pi, run (replacing all values with ones s
 $ make deploy REMOTE_USER=root REMOTE_HOST=pi-hdd REMOTE_DIR=/home/ln/bin/ 
 ``` 
 
-If you want to expose tips page (`common/index.html`), make sure to expose port `:8080` on your firewall. The page will be located at path root. 
+If you want to expose donations page [see here], and make sure to expose port `:8080` on your firewall. The page will be located at path root.
 
+[see here]: https://github.com/lncm/donations/releases
 
 Development
 ---
