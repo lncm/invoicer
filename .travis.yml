@@ -12,10 +12,6 @@ stages:
   - name: deploy
     if: tag IS present
 
-env:
-  global:
-    secure: mNBPjemZnRu06PXVBKXsDkwhEERX4aHgU7hKsnwoCUXBZbzWTQssiqt0hkUVmJbzztPZhLFAiK3fCwUWSCF/tX0qnPwF6qk9E0NUzbrxqwzjh70AnLHRbwaB8X5f97QoyGDetCq4kHTsJ+ajIqzeOcPQut6sOWxwNzXnD91DkRKHmb9l8jbTpeLxA+4NEghSXmlfZHVquIeqZub+DiTpjS23wDTG6F0EwWeVMDeqoOGb2RYq5+p7ablefEOy6l5Q69AZG39qyibN9AmEVKpueUVhUxV4Tf065QmY2KYY13DWFbi/j8OYCFR/cyXdm0QN/+X6hIMut6P06iYvUTbKwbtGxAGnKlZXClruxptbmgNNrHrdfB2IKKLe8CqlQ/hzO6L03Se8nZFNw4EQ/s50dMHxcABYe0P1eGgSC3vwOcPL1O2PhKhfZMbajIphdcWXzARs3VpFaz8DjHL4DoFng07f+Ajk5/gxzMRmue0kLqyXEDA/QLZceyOYVeXyH2lybr+dPw0RVrh6N4OqAmVgD3hE2zPobrHVlzajhojxRfmtGMD/pL6T8p0HoTisf3bVDsxgbTVuz2ya+Cc1EqpfbgAfcHqP72UAY0Ufh/BqGBtjyGbAeyEdeIno8GYfB0jBUGfMYhhnh6Q01MYXZZPfzdCiCy0/xhxk6bekLNA9x30=
-
 jobs:
   include:
     - stage: build
@@ -37,6 +33,8 @@ jobs:
       deploy:
         skip_cleanup: true
         provider: releases
+        api_key:
+          secure: "c6XAMEI3KmLeRkM9X+hrL2e9XhMwPTktoDbtxwkOekJO0zI8NiJNfLlAXRY4ZLUlKAxr1uzvMDtsQJmfBMTVdwPOLK0nErLXlHJe92aX0IjxMn44qCE/rFevzT+uW3Dm+faBZVWEAmoOKuzpljwKOcu9sqy3yPDsm40CQU2VfbNdDHcOcojXKoou18IK91zrdu1RTCdQdHesojOy6dWgGniY5JVCU54jj9Fw+UXHrZCB1Ecucq+VHqFBC/5Cdc0ksqah1McnzLaGR862Imd0hvpB1rPchPdStvxyAxd4fjOMWau6GMHo1ZVd3zkKn6s9A2e5EB+H8FVzEe144dpDAf+I30BdbNAaZZ7JiCaawyzJvVj1yqzfoeMbUrWFUd4QdxE6n955bumEEtwQ7FAaOVYBf5TXm8dtLCGeOoZtBWRimlywyL/WdYJ2LpFiXlVeFxhi0oj8jR0EL4mQRYx3ibhncXzhBzJbTAV6OOvsHJc6a6NYSrvM6bzq95G2i0zkB+trkCFBU6V1ij1aI7iFUQLh7fyHfVBz8WqBX0JdbqjgRh1AzX1mkzlzb2gVNw+jNVdg4bfN4QWKbE0kECBg3tFki14yJGQDKYjuZyFz7OSfdYURTrjDziGABsUwRjFcPdguDN/YL4YuaiE1PnBU6GZVg7gpDnwpqiUqi+9L+cw="
         file_glob: true
         file: bin/*
         on:
