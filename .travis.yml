@@ -18,11 +18,8 @@ jobs:
       name: "Build Docker image for amd64"
       env: ARCH=amd64
 
-    - env: ARCH=arm
-      name: "Build Docker image for arm"
-
-    - env: ARCH=
-      name: "Build Go binaries for various architectures"
+    - name: "Build Docker image for arm"
+      env: ARCH=arm
 
     - stage: deploy
       name: "Aggregate Docker images under one manifest"
