@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
+	log "github.com/sirupsen/logrus"
+	//"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/clightning"
@@ -490,6 +490,7 @@ func main() {
 		conf.Port = DefaultInvoicerPort
 	}
 
+	//err := autotls.Run(router, "meedamian.ddns.net")
 	err := router.Run(fmt.Sprintf(":%d", conf.Port))
 	if err != nil {
 		panic(err)

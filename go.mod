@@ -23,7 +23,11 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af // indirect
 	github.com/sirupsen/logrus v1.4.1
-	github.com/ugorji/go/codec v0.0.0-20181127175209-856da096dbdf // indirect
+	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/ugorji/go/codec v0.0.0-20181209151446-772ced7fd4c2 // indirect
+	golang.org/x/crypto v0.0.0-20190103213133-ff983b9c42bc // indirect
+	golang.org/x/net v0.0.0-20190110200230-915654e7eabc // indirect
+	golang.org/x/sys v0.0.0-20190116161447-11f53e031339 // indirect
 	google.golang.org/genproto v0.0.0-20181127195345-31ac5d88444a // indirect
 	google.golang.org/grpc v1.16.0
 	gopkg.in/errgo.v1 v1.0.0 // indirect
@@ -31,4 +35,5 @@ require (
 	gopkg.in/macaroon-bakery.v2 v2.1.0 // indirect
 	gopkg.in/macaroon.v2 v2.0.0
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
+	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
