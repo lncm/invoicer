@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
+
 # make sure Docker's config folder exists
 mkdir -p ~/.docker
 
@@ -12,7 +14,6 @@ sudo systemctl restart docker
 
 # print this to verify manifest options are now available
 docker version
-
 
 IMAGE_VERSIONED="${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}"
 IMAGE_VER_AMD64="${IMAGE_VERSIONED}-linux-amd64"

@@ -12,22 +12,31 @@ stages:
   - name: deploy
     if: tag IS present
 
+env:
+  global:
+    secure: mNBPjemZnRu06PXVBKXsDkwhEERX4aHgU7hKsnwoCUXBZbzWTQssiqt0hkUVmJbzztPZhLFAiK3fCwUWSCF/tX0qnPwF6qk9E0NUzbrxqwzjh70AnLHRbwaB8X5f97QoyGDetCq4kHTsJ+ajIqzeOcPQut6sOWxwNzXnD91DkRKHmb9l8jbTpeLxA+4NEghSXmlfZHVquIeqZub+DiTpjS23wDTG6F0EwWeVMDeqoOGb2RYq5+p7ablefEOy6l5Q69AZG39qyibN9AmEVKpueUVhUxV4Tf065QmY2KYY13DWFbi/j8OYCFR/cyXdm0QN/+X6hIMut6P06iYvUTbKwbtGxAGnKlZXClruxptbmgNNrHrdfB2IKKLe8CqlQ/hzO6L03Se8nZFNw4EQ/s50dMHxcABYe0P1eGgSC3vwOcPL1O2PhKhfZMbajIphdcWXzARs3VpFaz8DjHL4DoFng07f+Ajk5/gxzMRmue0kLqyXEDA/QLZceyOYVeXyH2lybr+dPw0RVrh6N4OqAmVgD3hE2zPobrHVlzajhojxRfmtGMD/pL6T8p0HoTisf3bVDsxgbTVuz2ya+Cc1EqpfbgAfcHqP72UAY0Ufh/BqGBtjyGbAeyEdeIno8GYfB0jBUGfMYhhnh6Q01MYXZZPfzdCiCy0/xhxk6bekLNA9x30=
+
 jobs:
   include:
     - stage: build
+      name: "Build Docker image for amd64"
       env: ARCH=amd64
+
     - env: ARCH=arm
+      name: "Build Docker image for arm"
+
     - env: ARCH=
+      name: "Build Go binaries for various architectures"
 
     - stage: deploy
+      name: "Aggregate Docker images under one manifest"
       script: ./travis/docker-manifest.sh
 
     - script: skip
+      name: "Upload Go binaries to Github Releases"
       deploy:
         skip_cleanup: true
         provider: releases
-        api_key:
-          secure: jz4e2iIQWsbR0AdyKglPJmD4ka9KC5FCGrLv0Tp6+8+WJUr2NucPsJelTxzAdytkFw2fq09S4hccfWp/byjlAXU59GobsWe8DGirZdlucRR2qqWbGVMgIym8GNEwZ/UOGPKs9t9c+CllmUq/I6aCs/8CU6pI+se9HJqGsLZuJqnuwjzhKFUdAVl+I6qWKxPmLs9j4LcuETLaSDeD0XiNah1e/qCSomNX+0Vq+YCHhm/upFNOKjT1ZEGtpUal+a/WyrGFcvHOq1UxjM7U/rRoKP3i787fHSozQ9tvtb9X1PIrffrsFHkfTU7mT6LGdzVGziylT1AGaNEEMSvy/lZyW1INqxU9gT6REgmggqaNHgMl6a71xxubM/ngeb5NB2y/vE24jV8Lf4VfEdp4SirYAf0AHLW67iopcCWUnPjY5SCddizePWQPcdDVzdb3LYbs7xAaqc/YNHSt6vNXkNiSJiv9ZH6iqVwg9PdK76RAL18K9wfeq/RSYtqMe3rIPuTODilGP/NBCInsWjRaVjIaa0sjHMIC51l1673/93uPIO9koigMK3PDRbs5VYBXdj6PriU9GhMk4W2bgOHKQvlMso2p0RWqy999b2E587BroXF6ZV5FQRnPvYDu2UD3dPis/8VKs9vRM6WFgX1BJkuN8WVKAS5MNZxGTd5I+OTRZck=
         file_glob: true
         file: bin/*
         on:
