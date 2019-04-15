@@ -5,11 +5,6 @@ dist: xenial
 services:
   - docker
 
-#env:
-#  matrix:
-#    - ARCH=amd64
-#    - ARCH=arm
-
 language: bash
 
 stages:
@@ -22,14 +17,8 @@ jobs:
     - stage: build
       env: ARCH=amd64
     - env: ARCH=arm
+    - env: ARCH=
 
-
-before_install:
-  - mkdir -p ~/.docker
-  - >
-    echo '{ "experimental": "enabled" }' > ~/.docker/config.json
-  - sudo systemctl restart docker
-  - docker version
 
 before_script:
   - >
@@ -38,10 +27,39 @@ before_script:
       echo "Dockerfile modified"
     fi
 
+
 script:
-  - docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
+  - >
+    if [ -z "${ARCH}" ]; then
+      docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
+    else
+      go version
+
+      make ci
+    fi
+
   - >
     if [ -n "${TRAVIS_TAG}" ]; then
       travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
-      ./travis-deploy.sh "${ARCH}"
+
+      docker tag invoicer "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
+      docker push "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
     fi
+
+
+deploy:
+  skip_cleanup: true
+  provider: releases
+  api_key:
+    secure: jz4e2iIQWsbR0AdyKglPJmD4ka9KC5FCGrLv0Tp6+8+WJUr2NucPsJelTxzAdytkFw2fq09S4hccfWp/byjlAXU59GobsWe8DGirZdlucRR2qqWbGVMgIym8GNEwZ/UOGPKs9t9c+CllmUq/I6aCs/8CU6pI+se9HJqGsLZuJqnuwjzhKFUdAVl+I6qWKxPmLs9j4LcuETLaSDeD0XiNah1e/qCSomNX+0Vq+YCHhm/upFNOKjT1ZEGtpUal+a/WyrGFcvHOq1UxjM7U/rRoKP3i787fHSozQ9tvtb9X1PIrffrsFHkfTU7mT6LGdzVGziylT1AGaNEEMSvy/lZyW1INqxU9gT6REgmggqaNHgMl6a71xxubM/ngeb5NB2y/vE24jV8Lf4VfEdp4SirYAf0AHLW67iopcCWUnPjY5SCddizePWQPcdDVzdb3LYbs7xAaqc/YNHSt6vNXkNiSJiv9ZH6iqVwg9PdK76RAL18K9wfeq/RSYtqMe3rIPuTODilGP/NBCInsWjRaVjIaa0sjHMIC51l1673/93uPIO9koigMK3PDRbs5VYBXdj6PriU9GhMk4W2bgOHKQvlMso2p0RWqy999b2E587BroXF6ZV5FQRnPvYDu2UD3dPis/8VKs9vRM6WFgX1BJkuN8WVKAS5MNZxGTd5I+OTRZck=
+  file_glob: true
+  file: bin/*
+  on:
+    repo: lncm/invoicer
+    tags: true
+
+
+after_deploy:
+  - ./travis/docker-manifest.sh
+
+

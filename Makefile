@@ -30,7 +30,9 @@ run: $(SRC)
 tag:
 	git tag -sa $(VERSION) -m "v$(VERSION)"
 
-all: tag bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin
+ci: bin/invoicer-linux-arm bin/invoicer-linux-amd64 bin/invoicer-darwin bin/invoicer-freebsd-amd64 bin/invoicer-openbsd-amd64
+
+all: tag ci
 
 REMOTE_USER ?= root
 REMOTE_HOST ?= pi-hdd
@@ -43,5 +45,5 @@ deploy: bin/invoicer-linux-arm
 clean:
 	rm -rf bin/*
 
-.PHONY: run tag all deploy clean
+.PHONY: run tag all deploy clean ci
 
