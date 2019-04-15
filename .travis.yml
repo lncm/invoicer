@@ -28,8 +28,7 @@ jobs:
       name: "Aggregate Docker images under one manifest"
       script: ./travis/docker-manifest.sh
 
-    - script: skip
-      name: "Upload Go binaries to Github Releases"
+    - name: "Upload Go binaries to Github Releases"
       deploy:
         skip_cleanup: true
         provider: releases
