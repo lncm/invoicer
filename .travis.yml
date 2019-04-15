@@ -5,12 +5,24 @@ dist: xenial
 services:
   - docker
 
-env:
-  matrix:
-    - ARCH=amd64
-    - ARCH=arm
+#env:
+#  matrix:
+#    - ARCH=amd64
+#    - ARCH=arm
 
 language: bash
+
+stages:
+  - build
+  - name: deploy
+    if: tag IS present
+
+jobs:
+  include:
+    - stage: build
+      env: ARCH=amd64
+    - env: ARCH=arm
+
 
 before_install:
   - mkdir -p ~/.docker
