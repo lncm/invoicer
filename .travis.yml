@@ -45,21 +45,22 @@ before_script:
 
 script:
   - >
-    if [ ! -z "${ARCH}" ]; then
-      docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
-    else
+    if [ -z "${ARCH}" ]; then
       go version
 
       make ci
+
+    else
+      docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
+
+      if [ -n "${TRAVIS_TAG}" ]; then
+          travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
+
+          docker tag invoicer "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
+          docker push "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
+        fi
     fi
 
-  - >
-    if [ -n "${TRAVIS_TAG}" ]; then
-      travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
-
-      docker tag invoicer "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
-      docker push "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
-    fi
 
 
 #deploy:
