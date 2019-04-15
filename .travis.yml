@@ -30,7 +30,7 @@ before_script:
 
 script:
   - >
-    if [ -z "${ARCH}" ]; then
+    if [ ! -z "${ARCH}" ]; then
       docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
     else
       go version
