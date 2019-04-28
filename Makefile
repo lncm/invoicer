@@ -16,8 +16,11 @@ bin/invoicer-race: $(SRC)
 bin/darwin/invoicer: 		$(SRC)
 	env GOOS=darwin GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
 
-bin/linux-arm/invoicer: 	$(SRC)
-	env GOOS=linux GOARCH=arm GOARM=5 	go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-armv6/invoicer: 	$(SRC)
+	env GOOS=linux GOARCH=arm GOARM=6 	go build -o $@  -ldflags ${BUILD_FLAGS}
+
+bin/linux-armv7/invoicer: 	$(SRC)
+	env GOOS=linux GOARCH=arm GOARM=7 	go build -o $@  -ldflags ${BUILD_FLAGS}
 
 bin/linux-amd64/invoicer: 	$(SRC)
 	env GOOS=linux GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
@@ -31,7 +34,9 @@ bin/openbsd-amd64/invoicer: $(SRC)
 
 bin/invoicer-$(VERSION)-darwin.tgz: 		bin/darwin/invoicer
 	tar -cvzf $@ $<
-bin/invoicer-$(VERSION)-linux-arm.tgz: 		bin/linux-arm/invoicer
+bin/invoicer-$(VERSION)-linux-armv6.tgz: 	bin/linux-armv6/invoicer
+	tar -cvzf $@ $<
+bin/invoicer-$(VERSION)-linux-armv7.tgz: 	bin/linux-armv7/invoicer
 	tar -cvzf $@ $<
 bin/invoicer-$(VERSION)-linux-amd64.tgz: 	bin/linux-amd64/invoicer
 	tar -cvzf $@ $<
@@ -55,7 +60,8 @@ tag:
 	git tag -sa $(VERSION) -m "v$(VERSION)"
 
 ci: bin/invoicer-$(VERSION)-darwin.tgz \
-	bin/invoicer-$(VERSION)-linux-arm.tgz \
+	bin/invoicer-$(VERSION)-linux-armv6.tgz \
+	bin/invoicer-$(VERSION)-linux-armv7.tgz \
 	bin/invoicer-$(VERSION)-linux-amd64.tgz \
 	bin/invoicer-$(VERSION)-freebsd-amd64.tgz \
 	bin/invoicer-$(VERSION)-openbsd-amd64.tgz

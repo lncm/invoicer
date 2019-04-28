@@ -7,6 +7,13 @@ services:
 
 language: bash
 
+# Sets ${VER} to be MAJOR.MINOR from git tag, IF available,
+#
+# ${SLUG} removes "docker-" prefix, which while useful on GH, is useless on Docker Hub
+env:
+  global:
+    - VER=$(echo ${TRAVIS_TAG} | cut -d. -f1,2)
+
 stages:
   - build
   - name: deploy
@@ -16,10 +23,13 @@ jobs:
   include:
     - stage: build
       name: "Build Docker image for amd64"
-      env: ARCH=amd64
+      env: ARCH=linux-amd64
 
-    - name: "Build Docker image for arm"
-      env: ARCH=arm
+    - name: "Build Docker image for arm32v6"
+      env: ARCH=linux-armv6
+
+    - name: "Build Docker image for arm32v7"
+      env: ARCH=linux-armv7
 
     - stage: deploy
       name: "Aggregate Docker images under one manifest"
@@ -38,28 +48,5 @@ jobs:
           tags: true
 
 
-before_script:
-  - >
-    if [ "${ARCH}" = "arm" ]; then
-      sed -ie 's/FROM alpine/FROM arm32v6\/alpine/g' Dockerfile
-      echo "Dockerfile modified"
-    fi
-
-
-script:
-  - >
-    if [ -z "${ARCH}" ]; then
-      go version
-
-      make ci
-
-    else
-      docker build --no-cache -t invoicer --build-arg "goarch=${ARCH}" .
-
-      if [ -n "${TRAVIS_TAG}" ]; then
-          travis_retry timeout 5m echo "${DOCKER_PASS}" | docker login -u="${DOCKER_USER}" --password-stdin
-
-          docker tag invoicer "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
-          docker push "${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}-linux-${ARCH}"
-        fi
-    fi
+before_script: ./travis/before-script.sh
+script: ./travis/script.sh

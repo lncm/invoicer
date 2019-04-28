@@ -8,21 +8,15 @@ RUN mkdir -p /src/
 COPY ./ /src/
 WORKDIR /src/
 
-ARG goos
-ENV GOOS ${goos}
+ARG arch
 
-ARG goarch
-ENV GOARCH ${goarch}
+RUN make bin/${arch}/invoicer
 
-ARG goarm=6
-ENV GOARM ${goarm}
-
-RUN echo "GOOS:${GOOS} GOARCH:${GOARCH} GOARM:${GOARM}"
-
-RUN make bin/invoicer
+RUN mkdir -p /bin \
+    && mv bin/${arch}/invoicer /bin/
 
 # compress output binary
-RUN upx /src/bin/invoicer
+RUN upx /bin/invoicer
 
 
 # Start a new, final image.
@@ -31,7 +25,7 @@ FROM alpine:3.9 as final
 LABEL maintainer="Damian Mee (@meeDamian)"
 
 # Copy the binaries from the builder image.
-COPY --from=builder /src/bin/invoicer /bin/
+COPY --from=builder /bin/invoicer /bin/
 
 VOLUME /root/.invoicer
 
