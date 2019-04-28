@@ -8,6 +8,29 @@ import (
 )
 
 type (
+	// This struct defines the structure of the config .toml file
+	Config struct {
+		// Port invoicer will run on
+		Port int64 `toml:"port"`
+
+		// Path to directory where `index.html` will be served from
+		StaticDir string `toml:"static-dir"`
+
+		// Currently only `lnd` supported
+		LnClient string `toml:"ln-client"`
+
+		// [bitcoind] section in the `--config` file that defines Bitcoind's setup
+		Bitcoind Bitcoind `toml:"bitcoind"`
+
+		// [lnd] section in the `--config` file that defines Lnd's setup
+		Lnd Lnd `toml:"lnd"`
+
+		// An optional list of user:password pairs that will get granted access to the /history endpoint
+		Users map[string]string `toml:"users"`
+	}
+
+	// Bitcoind config
+	// NOTE: Keep in mind that this is **not yet encrypted**, so best to keep it _local_
 	Bitcoind struct {
 		Host string `toml:"host"`
 		Port int64  `toml:"port"`
@@ -15,26 +38,29 @@ type (
 		Pass string `toml:"pass"`
 	}
 
+	// Lnd config
 	Lnd struct {
 		Host      string `toml:"host"`
 		Port      int64  `toml:"port"`
+
+		// TLS certificate is usually located in `~/.lnd/tls.cert`
 		Tls       string `toml:"tls"`
+
+		// Macaroons are usually located in `~/.lnd/data/chain/bitcoin/mainnet/`
 		Macaroons struct {
+			// This is needed to generate new invoices
 			Invoice  string `toml:"invoice"`
+
+			// This is needed to check status of invoices (and if enabled access `/history` endpoint)
 			ReadOnly string `toml:"readonly"`
 		} `toml:"macaroon"`
-	}
 
-	Config struct {
-		Port      int64             `toml:"port"`
-		StaticDir string            `toml:"static-dir"`
-		LnClient  string            `toml:"ln-client"`
-		Bitcoind  Bitcoind          `toml:"bitcoind"`
-		Lnd       Lnd               `toml:"lnd"`
-		Users     map[string]string `toml:"users"`
+		// How many times try to talk to LND before committing suicide
+		KillCount *int `toml:"kill-count"`
 	}
 )
 
+// CleanAndExpandPath converts passed file system paths into absolute ones.
 func CleanAndExpandPath(path string) string {
 	if path == "" {
 		return ""

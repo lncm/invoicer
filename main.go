@@ -4,22 +4,23 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
-	log "github.com/sirupsen/logrus"
-	//"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
+	"github.com/pelletier/go-toml"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/xerrors"
+	"gopkg.in/go-playground/validator.v9"
+
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/lnd"
-	"github.com/pelletier/go-toml"
-	"github.com/pkg/errors"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type (
@@ -31,7 +32,7 @@ type (
 	}
 
 	LightningClient interface {
-		Address(ctx context.Context, bech32 bool) (string, error)
+		NewAddress(ctx context.Context, bech32 bool) (string, error)
 		Info(ctx context.Context) (common.Info, error)
 		NewInvoice(ctx context.Context, amount int64, desc string) (string, string, error)
 		Status(ctx context.Context, hash string) (common.Status, error)
@@ -53,6 +54,7 @@ var (
 	conf      common.Config
 
 	configFilePath = flag.String("config", common.DefaultConfigFile, "Path to a config file in TOML format")
+	showVersion    = flag.Bool("version", false, "Show version and exit")
 
 	accounts gin.Accounts
 )
@@ -60,12 +62,28 @@ var (
 func init() {
 	flag.Parse()
 
+	versionString := "debug"
+	if version != "" && gitHash != "" {
+		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
+	}
+
+	// if `--version` flag set, just show the version, and exit
+	if *showVersion {
+		fmt.Println(versionString)
+		os.Exit(0)
+	}
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+
 	// Expand configFile file path and load it
 	configFile, err := toml.LoadFile(common.CleanAndExpandPath(*configFilePath))
 	if err != nil {
 		panic(fmt.Sprintf("unable to load %s:\n\t%v", *configFilePath, err))
 	}
 
+	// Try to understand the config file
 	err = configFile.Unmarshal(&conf)
 	if err != nil {
 		panic(fmt.Sprintf("unable to process %s:\n\t%v", *configFilePath, err))
@@ -82,28 +100,21 @@ func init() {
 		lnClient = lnd.New(conf.Lnd)
 
 	case cLightning.ClientName:
-		//lnClient = cLightning.New()
+		// lnClient = cLightning.New()
 
 	default:
 		panic(fmt.Sprintf("invalid ln-client specified: %s", conf.LnClient))
 	}
 
-	// init  BTC client for monitoring on-chain payments
-	btcClient = bitcoind.New(conf.Bitcoind)
-
-	versionString := "debug"
-	if version != "" && gitHash != "" {
-		versionString = fmt.Sprintf("%s (git: %s)", version, gitHash)
+	// Init BTC client for monitoring on-chain payments
+	btcClient, err = bitcoind.New(conf.Bitcoind)
+	if err != nil {
+		panic(err)
 	}
 
 	if len(conf.Users) > 0 {
 		accounts = gin.Accounts(conf.Users)
 	}
-
-	log.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
-		FullTimestamp: true,
-	})
 
 	log.WithFields(log.Fields{
 		"version":   versionString,
@@ -122,15 +133,17 @@ func newPayment(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&data)
 	if err != nil {
-		c.AbortWithStatusJSON(400, gin.H{
-			"error": err.Error(),
+		replyStatus(c, common.StatusReply{
+			Code:  400,
+			Error: err.Error(),
 		})
 		return
 	}
 
 	if data.Only != "" && data.Only != "btc" && data.Only != "ln" {
-		c.AbortWithStatusJSON(400, gin.H{
-			"error": "only= is an optional parameter that can only take `btc` and `ln` as values",
+		replyStatus(c, common.StatusReply{
+			Code:  400,
+			Error: xerrors.New("only= is an optional parameter that can only take `btc` and `ln` as values").Error(),
 		})
 		return
 	}
@@ -139,8 +152,9 @@ func newPayment(c *gin.Context) {
 
 	if data.Only != "btc" {
 		if len(data.Description) > common.MaxInvoiceDescLen {
-			c.AbortWithStatusJSON(400, gin.H{
-				"error": fmt.Sprintf("description too long. Max length is %d.", common.MaxInvoiceDescLen),
+			replyStatus(c, common.StatusReply{
+				Code:  400,
+				Error: xerrors.Errorf("description too long. Max length is %d", common.MaxInvoiceDescLen).Error(),
 			})
 			return
 		}
@@ -148,8 +162,9 @@ func newPayment(c *gin.Context) {
 		// Generate new LN invoice
 		payment.Bolt11, payment.Hash, err = lnClient.NewInvoice(c, data.Amount, data.Description)
 		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{
-				"error": errors.WithMessage(err, "can't create new LN invoice").Error(),
+			replyStatus(c, common.StatusReply{
+				Code:  500,
+				Error: xerrors.Errorf("can't create new LN invoice: %w", err).Error(),
 			})
 			return
 		}
@@ -157,8 +172,9 @@ func newPayment(c *gin.Context) {
 		// Extract invoice's creation date & expiry
 		invoice, err := lnClient.Status(c, payment.Hash)
 		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{
-				"error": errors.WithMessage(err, "can't get LN invoice").Error(),
+			replyStatus(c, common.StatusReply{
+				Code:  500,
+				Error: xerrors.Errorf("can't get LN invoice: %w", err).Error(),
 			})
 			return
 		}
@@ -168,10 +184,11 @@ func newPayment(c *gin.Context) {
 
 	if data.Only != "ln" {
 		// get BTC address
-		payment.Address, err = lnClient.Address(c, false)
+		payment.Address, err = lnClient.NewAddress(c, false)
 		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{
-				"error": errors.WithMessage(err, "can't get Bitcoin address").Error(),
+			replyStatus(c, common.StatusReply{
+				Code:  500,
+				Error: xerrors.Errorf("can't get Bitcoin address: %w", err).Error(),
 			})
 			return
 		}
@@ -183,8 +200,9 @@ func newPayment(c *gin.Context) {
 
 		err = btcClient.ImportAddress(payment.Address, label)
 		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{
-				"error": fmt.Sprintf("can't import address (%s) to Bitcoin node: %v", payment.Address, err),
+			replyStatus(c, common.StatusReply{
+				Code:  500,
+				Error: xerrors.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
 			})
 			return
 		}
@@ -196,7 +214,6 @@ func newPayment(c *gin.Context) {
 func checkLnStatus(c context.Context, hash string, statusFn lnStatusFn) *common.StatusReply {
 	status, err := statusFn(c, hash)
 	if err != nil {
-		// TODO: ESSENTIAL(!) handle case where context gets cancelled
 		return &common.StatusReply{
 			Code:  500,
 			Error: fmt.Sprintf("unable to fetch invoice: %s", err),
@@ -219,9 +236,15 @@ func checkLnStatus(c context.Context, hash string, statusFn lnStatusFn) *common.
 	return &common.StatusReply{Ln: &status}
 }
 
-func checkBtcStatus(fin time.Time, addr string, lnProvided, flexible bool, desiredAmount int64) *common.StatusReply {
+func checkBtcStatus(ctx context.Context, fin time.Time, addr string, lnProvided, flexible bool, desiredAmount int64) *common.StatusReply {
 	for time.Now().Before(fin) {
 		time.Sleep(2 * time.Second)
+
+		if ctx.Err() != nil {
+			return &common.StatusReply{
+				Error: ctx.Err().Error(),
+			}
+		}
 
 		btcStatuses, err := btcClient.CheckAddress(addr)
 		if err != nil {
@@ -290,8 +313,9 @@ func status(c *gin.Context) {
 
 	err := c.BindQuery(&queryParams)
 	if err != nil {
-		c.AbortWithStatusJSON(400, common.StatusReply{
-			Error: fmt.Sprintf("invalid request: %v", err),
+		replyStatus(c, common.StatusReply{
+			Code:  400,
+			Error: xerrors.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
@@ -301,7 +325,8 @@ func status(c *gin.Context) {
 	flexible := queryParams.Flexible
 
 	if len(hash) == 0 && len(addr) == 0 {
-		c.AbortWithStatusJSON(500, common.StatusReply{
+		replyStatus(c, common.StatusReply{
+			Code:  500,
 			Error: "At least one of `hash` or `address` needs to be provided",
 		})
 		return
@@ -322,46 +347,55 @@ func status(c *gin.Context) {
 		desiredAmount = status.Ln.Value
 	}
 
+	ctx, cancel := context.WithDeadline(c, fin)
+	defer cancel()
+
 	paymentStatus := make(chan *common.StatusReply)
 
 	// subscribe to LN invoice status changes
 	if len(hash) > 0 {
 		go func() {
-			paymentStatus <- checkLnStatus(c, hash, lnClient.StatusWait)
+			paymentStatus <- checkLnStatus(ctx, hash, lnClient.StatusWait)
 		}()
 	}
 
 	// keep polling for status update every N seconds
 	if len(addr) > 0 {
 		go func() {
-			paymentStatus <- checkBtcStatus(fin, addr, len(hash) > 0, flexible, desiredAmount)
+			paymentStatus <- checkBtcStatus(ctx, fin, addr, len(hash) > 0, flexible, desiredAmount)
 		}()
 	}
 
-	ctx, cancel := context.WithDeadline(c, fin)
-	defer cancel()
+	var status *common.StatusReply
 
-	for {
-		var status *common.StatusReply
+	// wait until either:
+	select {
+	// … payment is received successfully
+	case status = <-paymentStatus:
 
-		// block until first channel message is received
-		select {
-		case <-ctx.Done():
-			status = &common.StatusReply{
-				Code:  408,
-				Error: "expired",
-			}
-
-		case status = <-paymentStatus:
+	// … payment expires
+	case <-ctx.Done():
+		status = &common.StatusReply{
+			Code:  408,
+			Error: "expired",
 		}
 
-		replyStatus(c, *status)
-		return
+	// … payment is cancelled by user
+	case <-c.Request.Context().Done():
+		cancel()
+		status = &common.StatusReply{
+			Code:  499,
+			Error: "cancelled by client",
+		}
 	}
+
+	replyStatus(c, *status)
+	return
 }
 
 // TODO: pagination
 // TODO: limit
+// TODO: bitcoin transactions
 func history(c *gin.Context) {
 	var queryParams struct {
 		Limit      int64  `form:"limit"`
@@ -371,16 +405,18 @@ func history(c *gin.Context) {
 
 	err := c.BindQuery(&queryParams)
 	if err != nil {
-		c.AbortWithStatusJSON(400, gin.H{
-			"error": fmt.Sprintf("invalid request: %v", err),
+		replyStatus(c, common.StatusReply{
+			Code:  400,
+			Error: xerrors.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
 
 	err = validator.New().Struct(queryParams)
 	if err != nil {
-		c.AbortWithStatusJSON(400, gin.H{
-			"error": fmt.Sprintf("invalid request: %v", err),
+		replyStatus(c, common.StatusReply{
+			Code:  400,
+			Error: xerrors.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
@@ -403,8 +439,9 @@ func history(c *gin.Context) {
 	// fetch LN history
 	lnHistory, err := lnClient.History(c)
 	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": fmt.Sprintf("Can't get history from LN node: %v", err),
+		replyStatus(c, common.StatusReply{
+			Code:  500,
+			Error: xerrors.Errorf("Can't get history from LN node: %w", err).Error(),
 		})
 		return
 	}
@@ -456,8 +493,9 @@ func history(c *gin.Context) {
 func info(c *gin.Context) {
 	info, err := lnClient.Info(c)
 	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{
-			"error": fmt.Sprintf("Can't get info from LN node: %v", err),
+		replyStatus(c, common.StatusReply{
+			Code:  500,
+			Error: xerrors.Errorf("Can't get info from LN node: %w", err).Error(),
 		})
 		return
 	}
@@ -466,7 +504,7 @@ func info(c *gin.Context) {
 }
 
 func main() {
-	//gin.SetMode(gin.ReleaseMode)
+	// gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -490,7 +528,6 @@ func main() {
 		conf.Port = DefaultInvoicerPort
 	}
 
-	//err := autotls.Run(router, "meedamian.ddns.net")
 	err := router.Run(fmt.Sprintf(":%d", conf.Port))
 	if err != nil {
 		panic(err)

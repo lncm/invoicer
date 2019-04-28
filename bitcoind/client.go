@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/lncm/invoicer/common"
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -111,7 +111,7 @@ func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []
 		return
 	}
 
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -125,13 +125,13 @@ func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []
 	}
 
 	if resBody.Error != nil {
-		return nil, errors.Errorf("bitcoind error (%d): %s", resBody.Error.Code, resBody.Error.Message)
+		return nil, xerrors.Errorf("bitcoind error (%d): %w", resBody.Error.Code, resBody.Error.Message)
 	}
 
 	return resBody.Result, nil
 }
 
-func New(conf common.Bitcoind) Bitcoind {
+func New(conf common.Bitcoind) (Bitcoind, error) {
 	if conf.Host == "" {
 		conf.Host = DefaultHostname
 	}
@@ -144,9 +144,16 @@ func New(conf common.Bitcoind) Bitcoind {
 		conf.User = DefaultUsername
 	}
 
-	return Bitcoind{
+	client := Bitcoind{
 		url:  fmt.Sprintf("http://%s:%d", conf.Host, conf.Port),
 		user: conf.User,
 		pass: conf.Pass,
 	}
+
+	_, err := client.BlockCount()
+	if err != nil {
+		return Bitcoind{}, xerrors.Errorf("can't connect to Bitcoind: %w", err)
+	}
+
+	return client, nil
 }

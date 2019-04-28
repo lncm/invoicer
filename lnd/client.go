@@ -7,30 +7,36 @@ import (
 	"io/ioutil"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/lncm/invoicer/common"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+
+	"github.com/lncm/invoicer/common"
 )
 
 const (
 	ClientName = "lnd"
 
-	DefaultHostname = "localhost"
-	DefaultPort     = 10009
-	DefaultTls      = "~/.invoicer/tls.cert"
-	DefaultInvoice  = "~/.invoicer/invoice.macaroon"
-	DefaultReadOnly = "~/.invoicer/readonly.macaroon"
+	DefaultHostname  = "localhost"
+	DefaultPort      = 10009
+	DefaultTls       = "~/.invoicer/tls.cert"
+	DefaultInvoice   = "~/.invoicer/invoice.macaroon"
+	DefaultReadOnly  = "~/.invoicer/readonly.macaroon"
+	DefaultKillCount = 4
 )
 
 type Lnd struct {
-	invoiceClient  lnrpc.LightningClient
+	// Used to generate invoices and monitor their status
+	invoiceClient lnrpc.LightningClient
+
+	// Used to access history and lnd's connection string
 	readOnlyClient lnrpc.LightningClient
+
+	notifier InvoiceMonitor
 }
 
 func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoice, hash string, err error) {
@@ -46,34 +52,23 @@ func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoi
 	return inv.PaymentRequest, hex.EncodeToString(inv.RHash), nil
 }
 
-// TODO: do not resubscribe on each request(?)
 func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, err error) {
-	invSub, err := lnd.invoiceClient.SubscribeInvoices(ctx, &lnrpc.InvoiceSubscription{})
+	inv, err := lnd.notifier.Status(ctx, hash)
 	if err != nil {
-		return
+		return common.Status{}, err
 	}
 
-	for {
-		var inv *lnrpc.Invoice
-		inv, err = invSub.Recv()
-		if err != nil {
-			return
-		}
-
-		if hash == hex.EncodeToString(inv.RHash) {
-			val := inv.Value
-			if val == 0 {
-				val = inv.AmtPaidSat
-			}
-
-			return common.Status{
-				Ts:      inv.CreationDate,
-				Settled: inv.Settled,
-				Expiry:  inv.Expiry,
-				Value:   val,
-			}, nil
-		}
+	val := inv.Value
+	if val == 0 {
+		val = inv.AmtPaidSat
 	}
+
+	return common.Status{
+		Ts:      inv.CreationDate,
+		Settled: inv.State == lnrpc.Invoice_SETTLED,
+		Expiry:  inv.Expiry,
+		Value:   val,
+	}, nil
 }
 
 func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err error) {
@@ -87,18 +82,23 @@ func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err er
 		return
 	}
 
+	val := inv.Value
+	if val == 0 {
+		val = inv.AmtPaidSat
+	}
+
 	return common.Status{
 		Ts:      inv.CreationDate,
-		Settled: inv.Settled,
+		Settled: inv.State == lnrpc.Invoice_SETTLED,
 		Expiry:  inv.Expiry,
 		Value:   inv.Value,
 	}, nil
 }
 
-func (lnd Lnd) Address(ctx context.Context, bech32 bool) (address string, err error) {
-	addrType := lnrpc.NewAddressRequest_NESTED_PUBKEY_HASH
+func (lnd Lnd) NewAddress(ctx context.Context, bech32 bool) (address string, err error) {
+	addrType := lnrpc.AddressType_NESTED_PUBKEY_HASH
 	if bech32 {
-		addrType = lnrpc.NewAddressRequest_WITNESS_PUBKEY_HASH
+		addrType = lnrpc.AddressType_WITNESS_PUBKEY_HASH
 	}
 
 	addrResp, err := lnd.invoiceClient.NewAddress(ctx, &lnrpc.NewAddressRequest{
@@ -121,19 +121,34 @@ func (lnd Lnd) Info(ctx context.Context) (info common.Info, err error) {
 }
 
 func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error) {
-	list, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
+	// group, c := errgroup.WithContext(ctx)
+	//
+	// var invoiceList *lnrpc.ListInvoiceResponse
+	// group.Go(func() (err error) {
+	invoiceList, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: 100,
 		Reversed:       true,
 	})
+
+	// 	return
+	// })
+	//
+	// var chainList *lnrpc.TransactionDetails
+	// group.Go(func() (err error) {
+	// 	chainList, err = lnd.readOnlyClient.GetTransactions(c, &lnrpc.GetTransactionsRequest{})
+	// 	return
+	// })
+	//
+	// err = group.Wait()
 	if err != nil {
 		return
 	}
 
-	for _, inv := range list.Invoices {
+	for _, inv := range invoiceList.Invoices {
 		invoices = append(invoices, common.Invoice{
 			Description: inv.Memo,
 			Amount:      inv.Value,
-			Paid:        inv.Settled,
+			Paid:        inv.State == lnrpc.Invoice_SETTLED,
 			PaidAt:      inv.SettleDate,
 			Expired:     inv.CreationDate+inv.Expiry < time.Now().Unix(),
 			NewPayment: common.NewPayment{
@@ -145,12 +160,14 @@ func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error
 		})
 	}
 
-	// TODO: optionally reverse order(?)
-
 	return
 }
 
-func (lnd Lnd) checkStatus() {
+func (lnd Lnd) checkConnectionStatus(killCount int) {
+	if killCount == 0 {
+		return
+	}
+
 	failures := 0
 
 	for {
@@ -233,13 +250,25 @@ func New(conf common.Lnd) (lnd Lnd) {
 
 	hostname := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
-	lnd = Lnd{
-		invoiceClient:  getClient(creds, hostname, conf.Macaroons.Invoice),
-		readOnlyClient: getClient(creds, hostname, conf.Macaroons.ReadOnly),
+	invoiceClient := getClient(creds, hostname, conf.Macaroons.Invoice)
+	notifier, err := NewNotifier(invoiceClient)
+	if err != nil {
+		panic(err)
 	}
 
-	// TODO: start goroutine subscribing to invoice status changes
-	go lnd.checkStatus()
+	lnd = Lnd{
+		invoiceClient:  invoiceClient,
+		readOnlyClient: getClient(creds, hostname, conf.Macaroons.ReadOnly),
+		notifier:       notifier,
+	}
+
+	if conf.KillCount == nil {
+		// `hah` assignment is silly, but necessary…
+		hah := DefaultKillCount
+		conf.KillCount = &hah
+	}
+
+	go lnd.checkConnectionStatus(*conf.KillCount)
 
 	return
 }

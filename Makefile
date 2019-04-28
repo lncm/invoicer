@@ -13,20 +13,20 @@ bin/invoicer-race: $(SRC)
 	go build -race -o $@ -ldflags ${BUILD_FLAGS}
 
 
-bin/darwin/invoicer: $(SRC)
-	env GOOS=darwin GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/darwin/invoicer: 		$(SRC)
+	env GOOS=darwin GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
 
-bin/linux-arm/invoicer: $(SRC)
-	env GOOS=linux GOARCH=arm GOARM=5 go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-arm/invoicer: 	$(SRC)
+	env GOOS=linux GOARCH=arm GOARM=5 	go build -o $@  -ldflags ${BUILD_FLAGS}
 
-bin/linux-amd64/invoicer: $(SRC)
-	env GOOS=linux GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-amd64/invoicer: 	$(SRC)
+	env GOOS=linux GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
 
 bin/freebsd-amd64/invoicer: $(SRC)
-	env GOOS=freebsd GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
+	env GOOS=freebsd GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
 
 bin/openbsd-amd64/invoicer: $(SRC)
-	env GOOS=openbsd GOARCH=amd64 go build -o $@  -ldflags ${BUILD_FLAGS}
+	env GOOS=openbsd GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
 
 
 bin/invoicer-$(VERSION)-darwin.tgz: 		bin/darwin/invoicer
@@ -42,14 +42,14 @@ bin/invoicer-$(VERSION)-openbsd-amd64.tgz: 	bin/openbsd-amd64/invoicer
 
 
 static/index.html:
-	mkdir static
+	mkdir -p static
 	curl -s https://api.github.com/repos/lncm/donations/releases/latest \
 		| grep "browser_download_url.*html" \
 		| cut -d '"' -f 4 \
 		| wget -O $@ -qi -
 
 run: $(SRC)
-	go run main.go
+	go run main.go -config ./invoicer.conf
 
 tag:
 	git tag -sa $(VERSION) -m "v$(VERSION)"

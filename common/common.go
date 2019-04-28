@@ -1,8 +1,6 @@
 package common
 
-import (
-	"time"
-)
+import "time"
 
 const (
 	DefaultConfigFile    = "~/.invoicer/invoicer.conf"
@@ -24,10 +22,10 @@ type (
 
 		Description string `json:"description"`
 
-		// What was the requested amount for the payment
+		// The requested amount for the payment
 		Amount int64 `json:"amount"`
 
-		// general status of the payment
+		// General status of the payment
 		Expired bool  `json:"is_expired"`
 		Paid    bool  `json:"is_paid"`
 		PaidAt  int64 `json:"paid_at,omitempty"`
