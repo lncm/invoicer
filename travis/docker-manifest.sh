@@ -18,8 +18,8 @@ docker version
 # Example: lncm/invoicer:0.3.1
 IMAGE_VERSIONED="${TRAVIS_REPO_SLUG}:${TRAVIS_TAG}"
 IMAGE_AMD64="${IMAGE_VERSIONED}-linux-amd64"
-IMAGE_ARM6="${IMAGE_VERSIONED}-linux-arm6"
-IMAGE_ARM7="${IMAGE_VERSIONED}-linux-arm7"
+IMAGE_ARM6="${IMAGE_VERSIONED}-linux-armv6"
+IMAGE_ARM7="${IMAGE_VERSIONED}-linux-armv7"
 
 docker pull "${IMAGE_AMD64}"
 docker pull "${IMAGE_ARM6}"
