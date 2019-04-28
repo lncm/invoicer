@@ -1,4 +1,4 @@
-VERSION = 0.3.4
+VERSION = 0.3.5
 
 VERSION_STAMP="main.version=v$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"

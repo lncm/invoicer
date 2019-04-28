@@ -16,6 +16,7 @@ go:
 env:
   global:
     - VER=$(echo ${TRAVIS_TAG} | cut -d. -f1,2)
+    - GO111MODULE=on
 
 stages:
   - build
