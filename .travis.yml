@@ -5,7 +5,10 @@ dist: xenial
 services:
   - docker
 
-language: bash
+language: go
+
+go:
+  - "1.12"
 
 # Sets ${VER} to be MAJOR.MINOR from git tag, IF available,
 #
