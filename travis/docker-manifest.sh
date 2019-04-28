@@ -34,7 +34,7 @@ docker manifest push      "${IMAGE_VERSIONED}"
 
 
 # example: lncm/invoicer:0.3
-IMAGE_MINOR_VER="${SLUG}:${VER}"
+IMAGE_MINOR_VER="${TRAVIS_REPO_SLUG}:${VER}"
 
 echo     "Pushing manifest ${IMAGE_MINOR_VER}"
 docker -D manifest create "${IMAGE_MINOR_VER}"  "${IMAGE_AMD64}"  "${IMAGE_ARM6}"  "${IMAGE_ARM7}"
