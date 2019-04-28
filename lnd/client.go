@@ -121,41 +121,26 @@ func (lnd Lnd) Info(ctx context.Context) (info common.Info, err error) {
 }
 
 func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error) {
-	// group, c := errgroup.WithContext(ctx)
-	//
-	// var invoiceList *lnrpc.ListInvoiceResponse
-	// group.Go(func() (err error) {
 	invoiceList, err := lnd.readOnlyClient.ListInvoices(ctx, &lnrpc.ListInvoiceRequest{
 		NumMaxInvoices: 100,
 		Reversed:       true,
 	})
-
-	// 	return
-	// })
-	//
-	// var chainList *lnrpc.TransactionDetails
-	// group.Go(func() (err error) {
-	// 	chainList, err = lnd.readOnlyClient.GetTransactions(c, &lnrpc.GetTransactionsRequest{})
-	// 	return
-	// })
-	//
-	// err = group.Wait()
 	if err != nil {
 		return
 	}
 
 	for _, inv := range invoiceList.Invoices {
 		invoices = append(invoices, common.Invoice{
-			Description: inv.Memo,
-			Amount:      inv.Value,
-			Paid:        inv.State == lnrpc.Invoice_SETTLED,
-			PaidAt:      inv.SettleDate,
-			Expired:     inv.CreationDate+inv.Expiry < time.Now().Unix(),
+			Description: inv.GetMemo(),
+			Amount:      inv.GetValue(),
+			Paid:        inv.GetState() == lnrpc.Invoice_SETTLED,
+			PaidAt:      inv.GetSettleDate(),
+			Expired:     inv.GetCreationDate()+inv.GetExpiry() < time.Now().Unix(),
 			NewPayment: common.NewPayment{
-				Bolt11:    inv.PaymentRequest,
-				Hash:      hex.EncodeToString(inv.RHash),
-				CreatedAt: inv.CreationDate,
-				Expiry:    inv.Expiry,
+				Bolt11:    inv.GetPaymentRequest(),
+				Hash:      hex.EncodeToString(inv.GetRHash()),
+				CreatedAt: inv.GetCreationDate(),
+				Expiry:    inv.GetExpiry(),
 			},
 		})
 	}
