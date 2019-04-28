@@ -49,7 +49,7 @@ func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoi
 		return
 	}
 
-	return inv.PaymentRequest, hex.EncodeToString(inv.RHash), nil
+	return inv.GetPaymentRequest(), hex.EncodeToString(inv.GetRHash()), nil
 }
 
 func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, err error) {
@@ -58,15 +58,15 @@ func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, er
 		return common.Status{}, err
 	}
 
-	val := inv.Value
+	val := inv.GetValue()
 	if val == 0 {
-		val = inv.AmtPaidSat
+		val = inv.GetAmtPaidSat()
 	}
 
 	return common.Status{
-		Ts:      inv.CreationDate,
-		Settled: inv.State == lnrpc.Invoice_SETTLED,
-		Expiry:  inv.Expiry,
+		Ts:      inv.GetCreationDate(),
+		Settled: inv.GetState() == lnrpc.Invoice_SETTLED,
+		Expiry:  inv.GetExpiry(),
 		Value:   val,
 	}, nil
 }
@@ -82,16 +82,16 @@ func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err er
 		return
 	}
 
-	val := inv.Value
+	val := inv.GetValue()
 	if val == 0 {
-		val = inv.AmtPaidSat
+		val = inv.GetAmtPaidSat()
 	}
 
 	return common.Status{
-		Ts:      inv.CreationDate,
-		Settled: inv.State == lnrpc.Invoice_SETTLED,
-		Expiry:  inv.Expiry,
-		Value:   inv.Value,
+		Ts:      inv.GetCreationDate(),
+		Settled: inv.GetState() == lnrpc.Invoice_SETTLED,
+		Expiry:  inv.GetExpiry(),
+		Value:   inv.GetValue(),
 	}, nil
 }
 
@@ -108,7 +108,7 @@ func (lnd Lnd) NewAddress(ctx context.Context, bech32 bool) (address string, err
 		return
 	}
 
-	return addrResp.Address, nil
+	return addrResp.GetAddress(), nil
 }
 
 func (lnd Lnd) Info(ctx context.Context) (info common.Info, err error) {
@@ -117,7 +117,7 @@ func (lnd Lnd) Info(ctx context.Context) (info common.Info, err error) {
 		return
 	}
 
-	return common.Info{Uris: i.Uris}, nil
+	return common.Info{Uris: i.GetUris()}, nil
 }
 
 func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error) {
@@ -176,12 +176,16 @@ func (lnd Lnd) checkConnectionStatus(killCount int) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := lnd.Info(ctx)
 		if err == nil {
+			if failures > 1 {
+				log.WithField("count", failures).Printf("lnd connection reestablished")
+			}
+
 			failures = 0
 		}
 
 		cancel()
 
-		if failures > 3 {
+		if failures >= killCount {
 			log.WithField("count", failures).WithField("final", true).Panic("lnd unreachable")
 		}
 
