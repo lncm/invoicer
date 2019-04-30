@@ -68,16 +68,21 @@ ci: bin/invoicer-$(VERSION)-darwin.tgz \
 
 all: tag ci
 
-REMOTE_USER ?= root
+REMOTE_USER ?= ln
 REMOTE_HOST ?= pi-hdd
-REMOTE_DIR ?= /home/ln/bin/
-REMOTE_STATIC ?= /home/ln/static/
-deploy: bin/linux-arm/invoicer static/index.html
-	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}"
-	rsync static/index.html "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_STATIC}"
+
+REMOTE_DIR_BINARY ?= /home/ln/bin/
+deploy-invoicer: bin/linux-armv7/invoicer
+	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR_BINARY}"
+
+REMOTE_DIR_STATIC ?= /home/ln/static/
+deploy-static: static/index.html
+	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR_STATIC}"
+
+deploy: deploy-invoicer deploy-static
 
 clean:
 	rm -rf bin/*
 
-.PHONY: run tag all deploy clean ci static/index.html
+.PHONY: run tag all deploy deploy-invoicer deploy-static clean ci static/index.html
 
