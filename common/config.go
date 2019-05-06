@@ -16,6 +16,9 @@ type (
 		// Path to directory where `index.html` will be served from
 		StaticDir string `toml:"static-dir"`
 
+		// Location of a log file
+		LogFile string `toml:"log-file"`
+
 		// Currently only `lnd` supported
 		LnClient string `toml:"ln-client"`
 

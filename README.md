@@ -16,15 +16,19 @@ Download binary from [releases page].
 
 [releases page]: https://github.com/lncm/invoicer/releases
 
+
 #### Manual
 
-Have Go `v1.11` installed, and:
+Have Go `v1.12` installed, and:
 
 ```bash
 git clone https://github.com/lncm/invoicer.git
 cd invoicer
 make run
 ``` 
+
+**NOTE:** It **might** work on previous versions of Go, but only the latest is supported.
+
 
 Usage
 -----
@@ -33,18 +37,21 @@ Usage
 $ ./invoicer --help
 Usage of bin/invoicer:
   -config string
-    	Path to a config file in TOML format (default "~/.invoicer/invoicer.conf")
+    	Path to a config file in TOML format (default "~/.lncm/invoicer.conf")
 ```
 
-**NOTE:** Before running make sure `invoicer.conf` exists somewhere.  To see what it expects please refer to `invoicer.example.conf` file.
-
+**NOTE:** Before running make sure `invoicer.conf` exists somewhere.  To see what's expected in it, please refer to `invoicer.example.conf` file.
 
 * Provide all credentials needed by LND and bitcoind,
 * Make sure the certificate provided via `tls = ` in `[lnd]` section has your domain/IP added,
 * To have `GET /history` endpoint available, make sure to add `user = "password"` pairs to `[users]` section,
 * By default all API paths start with `localhost:8080/api/`,
 * By default all other paths serve content from path passed as `static-dir = `, 
-* To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice
+* To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice.
+
+**NOTE_2:** Invoicer `v0.4` has changed default config location from `~/.invoicer/` to `~/.lncm/`, please move your `invoicer.conf` config accordingly.
+**NOTE_3:** Invoicer's logs are, by default stored in `~/.lncm/invoicer.log`, and are rotated every time log file reaches 100MB.
+
 
 Docker
 ------
@@ -55,15 +62,17 @@ Run:
 
 ```bash
 docker run -it --rm \
-    -v $(pwd)/:/root/.invoicer/ \
+    -v $(pwd)/:/root/.lncm/ \
     -p 8080:8080 \
     --name invoicer \
     --detach \
     lncm/invoicer:latest
 ```
 
+
 API
 ---
+
 
 ## `GET /`
 
@@ -78,6 +87,7 @@ Returns an array of LN connstrings, ex:
   "03935a378993d0b55056801b11957aaecb9f85f34b64245f864c22a2d25001de74@203.150.177.168:9739"
 ]
 ```
+
 
 ## `POST /api/payment`
 
@@ -116,6 +126,7 @@ On error, returns:
   "error": "content of an error"
 }
 ```
+
 
 ## `GET /api/payment?hash=LN-hash&address=BTC-address`
 
@@ -206,6 +217,7 @@ On error, returns:
     "error": "error message…"
 }
 ```
+
 
 ## `GET /api/history`
 
@@ -308,6 +320,7 @@ On error, returns:
 
 > **NOTE:** most recent invoice is on the bottom  
 
+
 Deployment
 ---
 
@@ -317,16 +330,17 @@ To deploy the binary to your Raspberry Pi, run (replacing all values with ones s
 $ make deploy REMOTE_USER=root REMOTE_HOST=pi-hdd REMOTE_DIR=/home/ln/bin/ 
 ``` 
 
-If you want to expose donations page [see here], and make sure to expose port `:8080` on your firewall. The page will be located at path root.
+If you want to expose donations page [see here], and make sure to expose port `:8080` on your firewall.  The page will be located at path root.
 
 [see here]: https://github.com/lncm/donations/releases
 
+
 Development
 ---
+
 All contributions are welcome.
 
 Feel free to get in touch!
 
 ---
-
 Made with 🥩 in Chiang Mai

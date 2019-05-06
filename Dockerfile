@@ -27,7 +27,7 @@ LABEL maintainer="Damian Mee (@meeDamian)"
 # Copy the binaries from the builder image.
 COPY --from=builder /bin/invoicer /bin/
 
-VOLUME /root/.invoicer
+VOLUME /root/.lncm
 
 # Expose Invoicer port
 EXPOSE 8080

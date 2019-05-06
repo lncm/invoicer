@@ -1,9 +1,16 @@
 package common
 
-import "time"
+import (
+	"time"
+
+	"github.com/pelletier/go-toml"
+)
 
 const (
-	DefaultConfigFile    = "~/.invoicer/invoicer.conf"
+	DefaultConfigDir  = "~/.lncm/"
+	DefaultConfigFile = DefaultConfigDir + "invoicer.conf"
+	DefaultLogFile    = DefaultConfigDir + "invoicer.log"
+
 	DefaultInvoiceExpiry = 180
 	MaxInvoiceDescLen    = 639
 )
@@ -121,4 +128,26 @@ func (p *Payment) checkBtcPaid() {
 		p.BtcPaid = true
 		p.Paid = true
 	}
+}
+
+// deprecatedConfigLocationCheck checks for a config file in a previously default location.  Checking there will be
+//      removed in one of the next versions.
+//
+//      tl;dr: `mkdir ~/.lncm  &&  mv ~/.invoicer/* ~/.lncm/  &&  rmdir ~/.invoicer`
+//
+// OR, if you run in Docker, just change where your volume is mounted, ex:
+//      `-v $(pwd)/:/root/.invoicer/`    ->    `-v $(pwd)/:/root/.lncm/`
+func DeprecatedConfigLocationCheck(path string, err error) (*toml.Tree, error) {
+	if path != DefaultConfigFile {
+		return nil, err
+	}
+
+	const deprecatedLocation = "~/.invoicer/invoicer.conf"
+
+	tree, err2 := toml.LoadFile(CleanAndExpandPath(deprecatedLocation))
+	if err2 != nil {
+		return nil, err
+	}
+
+	return tree, nil
 }

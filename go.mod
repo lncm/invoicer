@@ -17,4 +17,5 @@ require (
 	google.golang.org/grpc v1.20.1
 	gopkg.in/go-playground/validator.v9 v9.28.0
 	gopkg.in/macaroon.v2 v2.0.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

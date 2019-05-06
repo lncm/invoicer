@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 	"gopkg.in/go-playground/validator.v9"
+	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/clightning"
@@ -80,13 +81,19 @@ func init() {
 	// Expand configFile file path and load it
 	configFile, err := toml.LoadFile(common.CleanAndExpandPath(*configFilePath))
 	if err != nil {
-		panic(fmt.Sprintf("unable to load %s:\n\t%v", *configFilePath, err))
+		configFile, err = common.DeprecatedConfigLocationCheck(*configFilePath, err)
+		if err != nil {
+			panic(xerrors.Errorf("unable to load %s:\n\t%w", *configFilePath, err))
+		}
+
+		log.Warningln("WARNING: Default config location (~/.invoicer/) has been changed to ~/.lncm/ !\n" +
+			"\tPlease rename it, as future versions will no longer check for the config file there.")
 	}
 
 	// Try to understand the config file
 	err = configFile.Unmarshal(&conf)
 	if err != nil {
-		panic(fmt.Sprintf("unable to process %s:\n\t%v", *configFilePath, err))
+		panic(xerrors.Errorf("unable to process %s:\n\t%w", *configFilePath, err))
 	}
 
 	// Use lnd when no client is specified
@@ -103,7 +110,7 @@ func init() {
 		// lnClient = cLightning.New()
 
 	default:
-		panic(fmt.Sprintf("invalid ln-client specified: %s", conf.LnClient))
+		panic(xerrors.Errorf("invalid ln-client specified: %s", conf.LnClient))
 	}
 
 	// Init BTC client for monitoring on-chain payments
@@ -112,16 +119,38 @@ func init() {
 		panic(err)
 	}
 
+	// If user credentials specified in config file, pass them to gin, which enables `/api/history` endpoint
 	if len(conf.Users) > 0 {
 		accounts = gin.Accounts(conf.Users)
 	}
 
-	log.WithFields(log.Fields{
+	if conf.LogFile == "" {
+		conf.LogFile = common.DefaultLogFile
+	}
+
+	fields := log.Fields{
 		"version":   versionString,
 		"client":    conf.LnClient,
 		"users":     len(conf.Users),
 		"conf-file": *configFilePath,
-	}).Println("invoicer started")
+		"log-file":  conf.LogFile,
+	}
+
+	// Write current config to stdout
+	log.WithFields(fields).Println("invoicer started")
+
+	// After all initialization has been done, start logging to log file
+	log.SetOutput(&lumberjack.Logger{
+		Filename:  common.CleanAndExpandPath(conf.LogFile),
+		LocalTime: true,
+		Compress:  true,
+	})
+	log.SetFormatter(&log.JSONFormatter{
+		PrettyPrint: false, // Having `false` here makes sure that `jq` always works on `tail -f`.
+	})
+
+	// Write current config to log file
+	log.WithFields(fields).Println("invoicer started")
 }
 
 func newPayment(c *gin.Context) {
@@ -207,6 +236,11 @@ func newPayment(c *gin.Context) {
 			return
 		}
 	}
+
+	log.WithFields(log.Fields{
+		"in":  data,
+		"out": payment,
+	}).Println("Payment requested")
 
 	c.JSON(200, payment)
 }
@@ -389,6 +423,11 @@ func status(c *gin.Context) {
 		}
 	}
 
+	log.WithFields(log.Fields{
+		"in":     queryParams,
+		"status": *status,
+	}).Println("Payment updated")
+
 	replyStatus(c, *status)
 	return
 }
@@ -520,13 +559,21 @@ func main() {
 		r.GET("/history", gin.BasicAuth(accounts), history)
 	}
 
+	var staticFilePath string
 	if conf.StaticDir != "" {
-		router.StaticFile("/", path.Join(conf.StaticDir, "index.html"))
+		staticFilePath = path.Join(conf.StaticDir, "index.html")
+		router.StaticFile("/", staticFilePath)
 	}
 
 	if conf.Port == 0 {
 		conf.Port = DefaultInvoicerPort
 	}
+
+	log.WithFields(log.Fields{
+		"routes":      router.Routes(),
+		"port":        conf.Port,
+		"static-file": staticFilePath,
+	}).Println("gin router defined")
 
 	err := router.Run(fmt.Sprintf(":%d", conf.Port))
 	if err != nil {
