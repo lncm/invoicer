@@ -1,7 +1,17 @@
 invoicer
 ========
 
-[![Build Status](https://travis-ci.com/lncm/invoicer.svg?branch=master)](https://travis-ci.com/lncm/invoicer) ![](https://img.shields.io/microbadger/image-size/lncm/invoicer.svg?style=flat) ![](https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat)
+[ ![Build Status] ][invoicer-travis]   [ ![Docker Image Size] ][invoicer-docker-hub]   [ ![Docker Pulls Count] ][invoicer-docker-hub]   [ ![Maintainability] ][codeclimate-maintainability]
+
+[Build Status]: https://travis-ci.com/lncm/invoicer.svg?branch=master
+[Docker Image Size]: https://img.shields.io/microbadger/image-size/lncm/invoicer.svg?style=flat
+[Docker Pulls Count]: https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat
+[Maintainability]: https://api.codeclimate.com/v1/badges/02fbc85043d086e318a4/maintainability
+
+[invoicer-travis]: https://travis-ci.com/lncm/invoicer
+[invoicer-docker-hub]: https://hub.docker.com/r/lncm/invoicer
+[codeclimate-maintainability]: https://codeclimate.com/github/lncm/invoicer/maintainability
+
 
 > _"fiat is irrelephant 🐘"_
 
