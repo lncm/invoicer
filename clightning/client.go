@@ -3,8 +3,9 @@ package cLightning
 import (
 	"context"
 
-	"github.com/lncm/invoicer/common"
 	"golang.org/x/xerrors"
+
+	"github.com/lncm/invoicer/common"
 )
 
 const ClientName = "clightning"

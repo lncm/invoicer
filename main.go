@@ -5,13 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/pelletier/go-toml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
@@ -42,7 +42,15 @@ type (
 	}
 
 	lnStatusFn func(c context.Context, hash string) (common.Status, error)
+
+	CustomValidator struct {
+		validator *validator.Validate
+	}
 )
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	return cv.validator.Struct(i)
+}
 
 const DefaultInvoicerPort = 8080
 
@@ -56,8 +64,6 @@ var (
 
 	configFilePath = flag.String("config", common.DefaultConfigFile, "Path to a config file in TOML format")
 	showVersion    = flag.Bool("version", false, "Show version and exit")
-
-	accounts gin.Accounts
 )
 
 func init() {
@@ -119,11 +125,6 @@ func init() {
 		panic(err)
 	}
 
-	// If user credentials specified in config file, pass them to gin, which enables `/api/history` endpoint
-	if len(conf.Users) > 0 {
-		accounts = gin.Accounts(conf.Users)
-	}
-
 	if conf.LogFile == "" {
 		conf.LogFile = common.DefaultLogFile
 	}
@@ -153,59 +154,39 @@ func init() {
 	log.WithFields(fields).Println("invoicer started")
 }
 
-func newPayment(c *gin.Context) {
+func newPayment(c echo.Context) error {
 	var data struct {
 		Amount      int64  `json:"amount"`
 		Description string `json:"desc"`
 		Only        string `json:"only"`
 	}
 
-	err := c.ShouldBindJSON(&data)
+	err := c.Bind(&data)
 	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  400,
-			Error: err.Error(),
-		})
-		return
+		return c.JSON(400, errorStatus(err.Error()))
 	}
 
 	if data.Only != "" && data.Only != "btc" && data.Only != "ln" {
-		replyStatus(c, common.StatusReply{
-			Code:  400,
-			Error: xerrors.New("only= is an optional parameter that can only take `btc` and `ln` as values").Error(),
-		})
-		return
+		return c.JSON(400, errorStatus("only= is an optional parameter that can only take `btc` and `ln` as values"))
 	}
 
 	var payment common.NewPayment
 
 	if data.Only != "btc" {
 		if len(data.Description) > common.MaxInvoiceDescLen {
-			replyStatus(c, common.StatusReply{
-				Code:  400,
-				Error: xerrors.Errorf("description too long. Max length is %d", common.MaxInvoiceDescLen).Error(),
-			})
-			return
+			return c.JSON(400, errorStatus("description too long. Max length is %d", common.MaxInvoiceDescLen))
 		}
 
 		// Generate new LN invoice
-		payment.Bolt11, payment.Hash, err = lnClient.NewInvoice(c, data.Amount, data.Description)
+		payment.Bolt11, payment.Hash, err = lnClient.NewInvoice(c.Request().Context(), data.Amount, data.Description)
 		if err != nil {
-			replyStatus(c, common.StatusReply{
-				Code:  500,
-				Error: xerrors.Errorf("can't create new LN invoice: %w", err).Error(),
-			})
-			return
+			return c.JSON(500, errorStatus("can't create new LN invoice: %w", err))
 		}
 
 		// Extract invoice's creation date & expiry
-		invoice, err := lnClient.Status(c, payment.Hash)
+		invoice, err := lnClient.Status(c.Request().Context(), payment.Hash)
 		if err != nil {
-			replyStatus(c, common.StatusReply{
-				Code:  500,
-				Error: xerrors.Errorf("can't get LN invoice: %w", err).Error(),
-			})
-			return
+			return c.JSON(500, errorStatus("can't get LN invoice: %w", err))
 		}
 		payment.CreatedAt = invoice.Ts
 		payment.Expiry = invoice.Expiry
@@ -213,13 +194,9 @@ func newPayment(c *gin.Context) {
 
 	if data.Only != "ln" {
 		// get BTC address
-		payment.Address, err = lnClient.NewAddress(c, false)
+		payment.Address, err = lnClient.NewAddress(c.Request().Context(), false)
 		if err != nil {
-			replyStatus(c, common.StatusReply{
-				Code:  500,
-				Error: xerrors.Errorf("can't get Bitcoin address: %w", err).Error(),
-			})
-			return
+			return c.JSON(500, errorStatus("can't get Bitcoin address: %w", err))
 		}
 
 		label := data.Description
@@ -229,11 +206,7 @@ func newPayment(c *gin.Context) {
 
 		err = btcClient.ImportAddress(payment.Address, label)
 		if err != nil {
-			replyStatus(c, common.StatusReply{
-				Code:  500,
-				Error: xerrors.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
-			})
-			return
+			return c.JSON(500, errorStatus("can't import address (%s) to Bitcoin node: %w", payment.Address, err))
 		}
 	}
 
@@ -242,7 +215,7 @@ func newPayment(c *gin.Context) {
 		"out": payment,
 	}).Println("Payment requested")
 
-	c.JSON(200, payment)
+	return c.JSON(200, payment)
 }
 
 func checkLnStatus(c context.Context, hash string, statusFn lnStatusFn) *common.StatusReply {
@@ -329,41 +302,30 @@ func checkBtcStatus(ctx context.Context, fin time.Time, addr string, lnProvided,
 	return nil
 }
 
-func replyStatus(c *gin.Context, status common.StatusReply) {
-	if status.Code >= 300 {
-		c.AbortWithStatusJSON(status.Code, status)
-		return
+func errorStatus(msg string, err ...interface{}) common.StatusReply {
+	return common.StatusReply{
+		Error: xerrors.Errorf(msg, err...).Error(),
 	}
-
-	c.JSON(status.Code, status)
 }
 
-func status(c *gin.Context) {
-	var queryParams struct {
-		Hash     string `form:"hash"`
-		Addr     string `form:"address"`
-		Flexible bool   `form:"flexible"`
-	}
+func status(c echo.Context) error {
+	// var queryParams struct {
+	// 	Hash     string `form:"hash"`
+	// 	Addr     string `form:"address"`
+	// 	Flexible bool   `form:"flexible"`
+	// }
+	//
+	// err := c.BindQuery(&queryParams)
+	// if err != nil {
+	// 	return c.JSON(400, errorStatus("invalid request: %w", err))
+	// }
 
-	err := c.BindQuery(&queryParams)
-	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
-		})
-		return
-	}
-
-	hash := queryParams.Hash
-	addr := queryParams.Addr
-	flexible := queryParams.Flexible
+	hash := c.QueryParam("hash")
+	addr := c.QueryParam("address")
+	// flexible := c.QueryParam("flexible")
 
 	if len(hash) == 0 && len(addr) == 0 {
-		replyStatus(c, common.StatusReply{
-			Code:  500,
-			Error: "At least one of `hash` or `address` needs to be provided",
-		})
-		return
+		return c.JSON(500, errorStatus("At least one of: `hash` or `address` needs to be provided"))
 	}
 
 	var desiredAmount int64
@@ -371,17 +333,16 @@ func status(c *gin.Context) {
 
 	// do initial LN invoice check, and adjust expiration if available
 	if len(hash) > 0 {
-		status := checkLnStatus(c, hash, lnClient.Status)
+		status := checkLnStatus(c.Request().Context(), hash, lnClient.Status)
 		if status.Code > 0 {
-			replyStatus(c, *status)
-			return
+			return c.JSON(status.Code, *status)
 		}
 
 		fin = time.Unix(status.Ln.Ts, 0).Add(time.Duration(status.Ln.Expiry) * time.Second)
 		desiredAmount = status.Ln.Value
 	}
 
-	ctx, cancel := context.WithDeadline(c, fin)
+	ctx, cancel := context.WithDeadline(c.Request().Context(), fin)
 	defer cancel()
 
 	paymentStatus := make(chan *common.StatusReply)
@@ -396,7 +357,7 @@ func status(c *gin.Context) {
 	// keep polling for status update every N seconds
 	if len(addr) > 0 {
 		go func() {
-			paymentStatus <- checkBtcStatus(ctx, fin, addr, len(hash) > 0, flexible, desiredAmount)
+			paymentStatus <- checkBtcStatus(ctx, fin, addr, len(hash) > 0, true /*flexible*/, desiredAmount)
 		}()
 	}
 
@@ -415,7 +376,7 @@ func status(c *gin.Context) {
 		}
 
 	// … payment is cancelled by user
-	case <-c.Request.Context().Done():
+	case <-c.Request().Context().Done():
 		cancel()
 		status = &common.StatusReply{
 			Code:  499,
@@ -424,40 +385,31 @@ func status(c *gin.Context) {
 	}
 
 	log.WithFields(log.Fields{
-		"in":     queryParams,
+		"in":     c.QueryParams(),
 		"status": *status,
 	}).Println("Payment updated")
 
-	replyStatus(c, *status)
-	return
+	return c.JSON(status.Code, *status)
 }
 
 // TODO: pagination
 // TODO: limit
 // TODO: bitcoin transactions
-func history(c *gin.Context) {
+func history(c echo.Context) error {
 	var queryParams struct {
 		Limit      int64  `form:"limit"`
 		Offset     int64  `form:"offset"`
 		OnlyStatus string `form:"only_status" validate:"omitempty,oneof=paid expired pending"`
 	}
 
-	err := c.BindQuery(&queryParams)
+	err := c.Bind(&queryParams)
 	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
-		})
-		return
+		return c.JSON(400, errorStatus("invalid request: %w", err))
 	}
 
 	err = validator.New().Struct(queryParams)
 	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
-		})
-		return
+		return c.JSON(400, errorStatus("invalid request: %w", err))
 	}
 
 	var warning string
@@ -476,13 +428,9 @@ func history(c *gin.Context) {
 	}
 
 	// fetch LN history
-	lnHistory, err := lnClient.History(c)
+	lnHistory, err := lnClient.History(c.Request().Context())
 	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  500,
-			Error: xerrors.Errorf("Can't get history from LN node: %w", err).Error(),
-		})
-		return
+		return c.JSON(500, errorStatus("Can't get history from LN node: %w", err))
 	}
 
 	// merge histories
@@ -520,7 +468,7 @@ func history(c *gin.Context) {
 		history[i], history[j] = history[j], history[i]
 	}
 
-	c.JSON(200, struct {
+	return c.JSON(200, struct {
 		History []common.Payment `json:"history"`
 		Error   string           `json:"error,omitempty"`
 	}{
@@ -529,40 +477,44 @@ func history(c *gin.Context) {
 	})
 }
 
-func info(c *gin.Context) {
-	info, err := lnClient.Info(c)
+func info(c echo.Context) error {
+	info, err := lnClient.Info(c.Request().Context())
 	if err != nil {
-		replyStatus(c, common.StatusReply{
-			Code:  500,
-			Error: xerrors.Errorf("Can't get info from LN node: %w", err).Error(),
-		})
-		return
+		return c.JSON(500, errorStatus("Can't get info from LN node: %w", err))
 	}
 
-	c.JSON(200, info.Uris)
+	return c.JSON(200, info.Uris)
 }
 
 func main() {
-	// gin.SetMode(gin.ReleaseMode)
+	e := echo.New()
+	e.Use(middleware.CORS())
+	e.Use(middleware.Gzip())
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
-	router := gin.Default()
-	router.Use(cors.Default())
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
-
-	r := router.Group("/api")
-	r.POST("/payment", newPayment)
-	r.GET("/payment", status)
-	r.GET("/info", info)
+	api := e.Group("/api")
+	api.POST("/payment", newPayment)
+	api.GET("/payment", status)
+	api.GET("/info", info)
 
 	// history only available if Basic Auth is enabled
-	if len(accounts) > 0 {
-		r.GET("/history", gin.BasicAuth(accounts), history)
+	if len(conf.Users) > 0 {
+		e.Validator = &CustomValidator{validator: validator.New()}
+		api.GET("/history", history, middleware.BasicAuth(func(user, pass string, c echo.Context) (bool, error) {
+			p, ok := conf.Users[user]
+			if !ok {
+				return false, nil
+			}
+
+			return p == pass, nil
+		}))
 	}
 
 	var staticFilePath string
 	if conf.StaticDir != "" {
 		staticFilePath = path.Join(conf.StaticDir, "index.html")
-		router.StaticFile("/", staticFilePath)
+		e.File("/", staticFilePath)
 	}
 
 	if conf.Port == 0 {
@@ -570,13 +522,28 @@ func main() {
 	}
 
 	log.WithFields(log.Fields{
-		"routes":      router.Routes(),
+		"routes":      e.Routes(),
 		"port":        conf.Port,
 		"static-file": staticFilePath,
 	}).Println("gin router defined")
 
-	err := router.Run(fmt.Sprintf(":%d", conf.Port))
-	if err != nil {
-		panic(err)
+	e.HideBanner = true
+
+	// Start server
+	go func() {
+		if err := e.Start(fmt.Sprintf(":%d", conf.Port)); err != nil {
+			e.Logger.Info("shutting down the server")
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server with
+	// a timeout of 10 seconds.
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
 	}
 }

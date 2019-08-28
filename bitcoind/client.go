@@ -7,8 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/lncm/invoicer/common"
 	"golang.org/x/xerrors"
+
+	"github.com/lncm/invoicer/common"
 )
 
 const (
