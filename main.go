@@ -56,8 +56,6 @@ var (
 
 	configFilePath = flag.String("config", common.DefaultConfigFile, "Path to a config file in TOML format")
 	showVersion    = flag.Bool("version", false, "Show version and exit")
-
-	accounts gin.Accounts
 )
 
 func init() {
@@ -114,14 +112,11 @@ func init() {
 	}
 
 	// Init BTC client for monitoring on-chain payments
-	btcClient, err = bitcoind.New(conf.Bitcoind)
-	if err != nil {
-		panic(err)
-	}
-
-	// If user credentials specified in config file, pass them to gin, which enables `/api/history` endpoint
-	if len(conf.Users) > 0 {
-		accounts = gin.Accounts(conf.Users)
+	if !conf.OffChainOnly {
+		btcClient, err = bitcoind.New(conf.Bitcoind)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if conf.LogFile == "" {
@@ -175,6 +170,11 @@ func newPayment(c *gin.Context) {
 			Error: xerrors.New("only= is an optional parameter that can only take `btc` and `ln` as values").Error(),
 		})
 		return
+	}
+
+	// Force LN-only, no matter what the request was
+	if conf.OffChainOnly {
+		data.Only = "ln"
 	}
 
 	var payment common.NewPayment
@@ -394,7 +394,7 @@ func status(c *gin.Context) {
 	}
 
 	// keep polling for status update every N seconds
-	if len(addr) > 0 {
+	if !conf.OffChainOnly && len(addr) > 0 {
 		go func() {
 			paymentStatus <- checkBtcStatus(ctx, fin, addr, len(hash) > 0, flexible, desiredAmount)
 		}()
@@ -461,17 +461,20 @@ func history(c *gin.Context) {
 	}
 
 	var warning string
-	// fetch bitcoin history
-	btcAllAddresses, err := btcClient.CheckAddress("")
-	if err != nil {
-		warning = "Unable to fetch Bitcoin history. Only showing LN."
-	}
-
-	// Convert Bitcoin history from list to easily addressable map
 	btcHistory := make(map[string]common.AddrStatus)
-	for _, payment := range btcAllAddresses {
-		if payment.Label != "" {
-			btcHistory[payment.Label] = payment
+
+	if !conf.OffChainOnly {
+		// fetch bitcoin history
+		btcAllAddresses, err := btcClient.CheckAddress("")
+		if err != nil {
+			warning = "Unable to fetch Bitcoin history. Only showing LN."
+		}
+
+		// Convert Bitcoin history from list to easily addressable map
+		for _, payment := range btcAllAddresses {
+			if payment.Label != "" {
+				btcHistory[payment.Label] = payment
+			}
 		}
 	}
 
@@ -491,8 +494,11 @@ func history(c *gin.Context) {
 		var payment common.Payment
 		payment.ApplyLn(invoice)
 
-		if btcStatus, ok := btcHistory[payment.Hash]; ok {
-			payment.ApplyBtc(btcStatus)
+		// this check is probably unnecessary, as the map is empty anyway…
+		if !conf.OffChainOnly {
+			if btcStatus, ok := btcHistory[payment.Hash]; ok {
+				payment.ApplyBtc(btcStatus)
+			}
 		}
 
 		switch queryParams.OnlyStatus {
@@ -539,7 +545,14 @@ func info(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, info.Uris)
+	info.OnChain = true
+	info.OffChain = true
+
+	if conf.OffChainOnly {
+		info.OnChain = false
+	}
+
+	c.JSON(200, info)
 }
 
 func main() {
@@ -555,8 +568,8 @@ func main() {
 	r.GET("/info", info)
 
 	// history only available if Basic Auth is enabled
-	if len(accounts) > 0 {
-		r.GET("/history", gin.BasicAuth(accounts), history)
+	if len(conf.Users) > 0 {
+		r.GET("/history", gin.BasicAuth(conf.Users), history)
 	}
 
 	var staticFilePath string
@@ -570,7 +583,7 @@ func main() {
 	}
 
 	log.WithFields(log.Fields{
-		"routes":      router.Routes(),
+		"routes":      common.FormatRoutes(router.Routes()),
 		"port":        conf.Port,
 		"static-file": staticFilePath,
 	}).Println("gin router defined")

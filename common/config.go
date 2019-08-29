@@ -22,6 +22,9 @@ type (
 		// Currently only `lnd` supported
 		LnClient string `toml:"ln-client"`
 
+		// Allows for disabling the possibility of on-chain payments.
+		OffChainOnly bool `toml:"off-chain-only"`
+
 		// [bitcoind] section in the `--config` file that defines Bitcoind's setup
 		Bitcoind Bitcoind `toml:"bitcoind"`
 

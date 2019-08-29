@@ -71,7 +71,9 @@ type (
 	}
 
 	Info struct {
-		Uris []string `json:"uris"`
+		OnChain  bool     `json:"on-chain"`
+		OffChain bool     `json:"off-chain"`
+		Uris     []string `json:"uris"`
 	}
 
 	AddrStatus struct {
