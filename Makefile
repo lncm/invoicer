@@ -1,4 +1,4 @@
-VERSION = 0.4.0
+VERSION = v0.5.0
 
 VERSION_STAMP="main.version=v$(VERSION)"
 VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
@@ -57,7 +57,7 @@ run: $(SRC)
 	go run main.go -config ./invoicer.conf
 
 tag:
-	git tag -sa $(VERSION) -m "v$(VERSION)"
+	git tag -sa $(VERSION) -m "$(VERSION)"
 
 ci: bin/invoicer-$(VERSION)-darwin.tgz \
 	bin/invoicer-$(VERSION)-linux-armv6.tgz \
