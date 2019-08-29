@@ -53,6 +53,7 @@ Usage of bin/invoicer:
 **NOTE:** Before running make sure `invoicer.conf` exists somewhere.  To see what's expected in it, please refer to `invoicer.example.conf` file.
 
 * Provide all credentials needed by LND and bitcoind,
+* Or (if you use ex. neutrino) disable bitcoind dependency by adding: `off-chain-only=true` to config,
 * Make sure the certificate provided via `tls = ` in `[lnd]` section has your domain/IP added,
 * To have `GET /history` endpoint available, make sure to add `user = "password"` pairs to `[users]` section,
 * By default all API paths start with `localhost:8080/api/`,
@@ -90,12 +91,16 @@ If `static-dir =` passed, serves `index.html` located within there. Otherwise 40
 
 ## `GET /api/info`
 
-Returns an array of LN connstrings, ex:
+Returns node info, ex:
 
 ```json
-[
-  "03935a378993d0b55056801b11957aaecb9f85f34b64245f864c22a2d25001de74@203.150.177.168:9739"
-]
+{
+  "on-chain": true,
+  "off-chain": true,
+  "uris": [
+    "03935a378993d0b55056801b11957aaecb9f85f34b64245f864c22a2d25001de74@202.44.225.68:9739"
+  ]
+}
 ```
 
 
