@@ -9,3 +9,4 @@ bin/*
 /static/*
 /.travis.yml
 /travis-deploy.sh
+/invoicer

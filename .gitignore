@@ -8,3 +8,4 @@ users.list
 tls.cert
 invoicer.conf
 static/
+/invoicer
