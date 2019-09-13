@@ -1,14 +1,13 @@
 lncm/invoicer
 ==============
 
-[![Build Status]][invoicer-travis]
+![Build Status]
 [![gh_last_release_svg]][gh_last_release_url]
 [![Docker Image Size]][invoicer-docker-hub]
 [![Docker Pulls Count]][invoicer-docker-hub]
 [![Maintainability]][codeclimate-maintainability]
 
-[Build Status]: https://travis-ci.com/lncm/invoicer.svg?branch=master
-[invoicer-travis]: https://travis-ci.com/lncm/invoicer
+[Build Status]: https://github.com/lncm/invoicer/workflows/Build%20%26%20deploy%20invoicer%20on%20a%20git%20tag%20push/badge.svg
 
 [gh_last_release_svg]: https://img.shields.io/github/v/release/lncm/invoicer?sort=semver
 [gh_last_release_url]: https://github.com/lncm/invoicer/releases/latest
@@ -30,9 +29,18 @@ Installing
 
 #### Easy 
 
-Download binary from [releases page].
+Download binary from [Github Releases].
 
-[releases page]: https://github.com/lncm/invoicer/releases
+Or
+
+Pull Docker image from [Docker Hub].
+
+```shell script
+docker pull lncm/invoicer
+```
+
+[Github Releases]: https://github.com/lncm/invoicer/releases
+[Docker Hub]: https://hub.docker.com/r/lncm/invoicer
 
 
 #### Manual
