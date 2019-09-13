@@ -7,6 +7,6 @@ bin/*
 /invoicer.conf
 /invoicer.example.conf
 /static/*
-/.travis.yml
-/travis-deploy.sh
+/.github
+/scripts/
 /invoicer

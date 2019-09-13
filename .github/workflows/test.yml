@@ -1,0 +1,64 @@
+name: Build & test on any push
+
+on: push
+
+jobs:
+  build:
+    name: Build invoicer
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+          - arm32v6
+          - arm32v7
+
+    steps:
+      - uses: actions/checkout@v1.0.0
+
+      - name: Set target platform
+        if: matrix.arch != 'amd64'
+        run: ./scripts/ci-set-target-image-architecture.sh "${{ matrix.arch }}"
+
+      - name: Build invoicer in Docker
+        run: >
+          DOCKER_BUILDKIT=1 docker build --no-cache .
+          --build-arg "goarch=${{ matrix.arch }}"
+          --tag       "invoicer:${{ matrix.arch }}"
+          --file      Dockerfile
+
+      - name: Show built image details
+        run: docker images invoicer
+
+      - name: Save image to a .tgz file
+        run: |
+          mkdir -p image/
+          docker save "invoicer:${{ matrix.arch }}" | gzip > "image/invoicer-${{ matrix.arch }}.tgz"
+
+      - name: Print sha256sum of produced Docker image
+        run: sha256sum "image/invoicer-${{ matrix.arch }}.tgz"
+
+      - name: Add Docker image as build artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: docker-images
+          path: image/
+
+      - name: Extract binary from the built image
+        run: |
+          mkdir -p binary/
+          ID=$(docker create "invoicer:${{ matrix.arch }}")
+          docker cp  "${ID}:/bin/invoicer"  binary/
+          docker rm  "${ID}"
+          gzip -S "-${{ matrix.arch }}.gz" binary/invoicer
+
+      - name: Print sha256sum of extracted binary
+        run: sha256sum binary/*
+
+      - name: Add raw binary as build artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: binaries
+          path: binary/

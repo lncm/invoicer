@@ -1,15 +1,23 @@
-invoicer
-========
+lncm/invoicer
+==============
 
-[ ![Build Status] ][invoicer-travis]   [ ![Docker Image Size] ][invoicer-docker-hub]   [ ![Docker Pulls Count] ][invoicer-docker-hub]   [ ![Maintainability] ][codeclimate-maintainability]
+[![Build Status]][invoicer-travis]
+[![gh_last_release_svg]][gh_last_release_url]
+[![Docker Image Size]][invoicer-docker-hub]
+[![Docker Pulls Count]][invoicer-docker-hub]
+[![Maintainability]][codeclimate-maintainability]
 
 [Build Status]: https://travis-ci.com/lncm/invoicer.svg?branch=master
-[Docker Image Size]: https://img.shields.io/microbadger/image-size/lncm/invoicer.svg?style=flat
-[Docker Pulls Count]: https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat
-[Maintainability]: https://api.codeclimate.com/v1/badges/02fbc85043d086e318a4/maintainability
-
 [invoicer-travis]: https://travis-ci.com/lncm/invoicer
+
+[gh_last_release_svg]: https://img.shields.io/github/v/release/lncm/invoicer?sort=semver
+[gh_last_release_url]: https://github.com/lncm/invoicer/releases/latest
+
+[Docker Image Size]: https://img.shields.io/microbadger/image-size/lncm/invoicer.svg
+[Docker Pulls Count]: https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat
 [invoicer-docker-hub]: https://hub.docker.com/r/lncm/invoicer
+
+[Maintainability]: https://api.codeclimate.com/v1/badges/02fbc85043d086e318a4/maintainability
 [codeclimate-maintainability]: https://codeclimate.com/github/lncm/invoicer/maintainability
 
 
@@ -29,7 +37,7 @@ Download binary from [releases page].
 
 #### Manual
 
-Have Go `v1.12` installed, and:
+Have Go `v1.13` installed, and:
 
 ```bash
 git clone https://github.com/lncm/invoicer.git

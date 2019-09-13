@@ -1,50 +1,70 @@
-VERSION = 0.5.1
+VERSION = v0.6.0
 
-VERSION_STAMP="main.version=v$(VERSION)"
-VERSION_HASH="main.gitHash=$$(git rev-parse HEAD)"
-BUILD_FLAGS="-X ${VERSION_STAMP} -X ${VERSION_HASH}"
+# Fix as per: https://github.com/golang/go/issues/33772
+BUILD_FLAGS := -ldflags "-buildid= -X main.version=$(VERSION) -X main.gitHash=$$(git rev-parse HEAD)"
+
+PREFIX :=  CGO_ENABLED=0  GO111MODULE=on
+GOBUILD := $(PREFIX) go build -v -trimpath -mod=readonly $(BUILD_FLAGS)
 
 SRC := $(shell find . -type f -name '*.go')
 
 bin/invoicer: $(SRC)
-	go build -o $@ -ldflags ${BUILD_FLAGS}
+	$(GOBUILD)  -o $@
 
 bin/invoicer-race: $(SRC)
-	go build -race -o $@ -ldflags ${BUILD_FLAGS}
+	$(GOBUILD)  -o $@  -race
 
 
-bin/darwin/invoicer: 		$(SRC)
-	env GOOS=darwin GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/darwin/invoicer: $(SRC)
+	env GOOS=darwin GOARCH=amd64  		$(GOBUILD) -o $@
 
-bin/linux-armv6/invoicer: 	$(SRC)
-	env GOOS=linux GOARCH=arm GOARM=6 	go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-amd64/invoicer: $(SRC)
+	env GOOS=linux GOARCH=amd64 		$(GOBUILD) -o $@
 
-bin/linux-armv7/invoicer: 	$(SRC)
-	env GOOS=linux GOARCH=arm GOARM=7 	go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-arm32v6/invoicer: $(SRC)
+	env GOOS=linux GOARCH=arm GOARM=6 	$(GOBUILD) -o $@
 
-bin/linux-amd64/invoicer: 	$(SRC)
-	env GOOS=linux GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-arm32v7/invoicer: $(SRC)
+	env GOOS=linux GOARCH=arm GOARM=7 	$(GOBUILD) -o $@
 
-bin/freebsd-amd64/invoicer: $(SRC)
-	env GOOS=freebsd GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
-
-bin/openbsd-amd64/invoicer: $(SRC)
-	env GOOS=openbsd GOARCH=amd64 		go build -o $@  -ldflags ${BUILD_FLAGS}
+bin/linux-arm64/invoicer: $(SRC)
+	env GOOS=linux GOARCH=arm64 		$(GOBUILD) -o $@
 
 
 bin/invoicer-$(VERSION)-darwin.tgz: 		bin/darwin/invoicer
 	tar -cvzf $@ $<
-bin/invoicer-$(VERSION)-linux-armv6.tgz: 	bin/linux-armv6/invoicer
-	tar -cvzf $@ $<
-bin/invoicer-$(VERSION)-linux-armv7.tgz: 	bin/linux-armv7/invoicer
-	tar -cvzf $@ $<
 bin/invoicer-$(VERSION)-linux-amd64.tgz: 	bin/linux-amd64/invoicer
 	tar -cvzf $@ $<
-bin/invoicer-$(VERSION)-freebsd-amd64.tgz: 	bin/freebsd-amd64/invoicer
+bin/invoicer-$(VERSION)-linux-arm32v6.tgz: 	bin/linux-arm32v6/invoicer
 	tar -cvzf $@ $<
-bin/invoicer-$(VERSION)-openbsd-amd64.tgz: 	bin/openbsd-amd64/invoicer
+bin/invoicer-$(VERSION)-linux-arm32v7.tgz: 	bin/linux-arm32v7/invoicer
+	tar -cvzf $@ $<
+bin/invoicer-$(VERSION)-linux-arm64.tgz: 	bin/linux-arm64/invoicer
 	tar -cvzf $@ $<
 
+run: $(SRC)
+	go run main.go -config ./invoicer.conf
+
+tag:
+	git tag -sa $(VERSION) -m "$(VERSION)"
+
+ci: bin/invoicer-$(VERSION)-darwin.tgz \
+	bin/invoicer-$(VERSION)-linux-amd64.tgz \
+	bin/invoicer-$(VERSION)-linux-arm32v6.tgz \
+	bin/invoicer-$(VERSION)-linux-arm32v7.tgz \
+	bin/invoicer-$(VERSION)-linux-arm64.tgz
+
+all: tag ci
+
+clean:
+	rm -rf bin/*
+
+
+#
+# My personal shortcuts, probably not useful to anyone else, but maybe 🤷🏻‍♂️
+#
+REMOTE_USER ?= ln
+REMOTE_HOST ?= pi-hdd
 
 static/index.html:
 	mkdir -p static
@@ -53,26 +73,8 @@ static/index.html:
 		| cut -d '"' -f 4 \
 		| wget -O $@ -qi -
 
-run: $(SRC)
-	go run main.go -config ./invoicer.conf
-
-tag:
-	git tag -sa $(VERSION) -m "v$(VERSION)"
-
-ci: bin/invoicer-$(VERSION)-darwin.tgz \
-	bin/invoicer-$(VERSION)-linux-armv6.tgz \
-	bin/invoicer-$(VERSION)-linux-armv7.tgz \
-	bin/invoicer-$(VERSION)-linux-amd64.tgz \
-	bin/invoicer-$(VERSION)-freebsd-amd64.tgz \
-	bin/invoicer-$(VERSION)-openbsd-amd64.tgz
-
-all: tag ci
-
-REMOTE_USER ?= ln
-REMOTE_HOST ?= pi-hdd
-
 REMOTE_DIR_BINARY ?= /home/ln/bin/
-deploy-invoicer: bin/linux-armv7/invoicer
+deploy-invoicer: bin/linux-arm32v7/invoicer
 	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR_BINARY}"
 
 REMOTE_DIR_STATIC ?= /home/ln/static/
@@ -81,8 +83,4 @@ deploy-static: static/index.html
 
 deploy: deploy-invoicer deploy-static
 
-clean:
-	rm -rf bin/*
-
 .PHONY: run tag all deploy deploy-invoicer deploy-static clean ci static/index.html
-
