@@ -13,6 +13,11 @@ if [[ -z "${ARCH}" ]]; then
   exit 1
 fi
 
+FILE=$2
+if [[ -z "${FILE}" ]]; then
+  FILE="Dockerfile"
+fi
+
 
 # Convert matrix-supplied architecture to a format understood by Docker's `--platform=`  
 case "${ARCH}" in
@@ -48,6 +53,8 @@ fi
 #   `s/` - substitute; followed by two `/`-separated sections:
 #     1st section looks for a match.  Escaped \(\) define a _capture group_
 #     2nd section defines replacement.  `\1` is the value of the _capture group_ from the 1st section
-${SED} -i "s|^FROM \(.*final\)$|FROM --platform=linux/$CPU \1|" Dockerfile
+${SED} -i "s|^FROM \(.*final\)$|FROM --platform=linux/$CPU \1|" "${FILE}"
+
+grep '^FROM.*final$' "${FILE}"
 
 echo "Dockerfile modified: CPU architecture of the final stage set to: ${CPU}"
