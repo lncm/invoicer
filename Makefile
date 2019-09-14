@@ -6,13 +6,13 @@ BUILD_FLAGS := -ldflags "-buildid= -X main.version=$(VERSION) -X main.gitHash=$$
 PREFIX :=  CGO_ENABLED=0  GO111MODULE=on
 GOBUILD := $(PREFIX) go build -v -trimpath -mod=readonly $(BUILD_FLAGS)
 
-SRC := $(shell find . -type f -name '*.go')
+SRC := $(shell find . -type f -name '*.go') go.mod go.sum
 
 bin/invoicer: $(SRC)
-	$(GOBUILD)  -o $@
+	$(PREFIX) go build -v -o $@
 
 bin/invoicer-race: $(SRC)
-	$(GOBUILD)  -o $@  -race
+	$(PREFIX) go build -v -o $@  -race
 
 
 bin/darwin/invoicer: $(SRC)
