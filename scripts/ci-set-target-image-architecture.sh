@@ -55,6 +55,6 @@ fi
 #     2nd section defines replacement.  `\1` is the value of the _capture group_ from the 1st section
 ${SED} -i "s|^FROM \(.*final\)$|FROM --platform=linux/$CPU \1|" "${FILE}"
 
-grep '^FROM.*final$' "${FILE}"
-
 echo "Dockerfile modified: CPU architecture of the final stage set to: ${CPU}"
+
+grep '^FROM.*final$' "${FILE}"
