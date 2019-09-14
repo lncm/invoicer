@@ -6,25 +6,25 @@
 FROM golang:1.13-alpine3.10 AS alpine-builder
 
 RUN apk add --no-cache \
-        git \
-        make \
-        gcc \
-        musl-dev \
-        file
+    musl-dev \
+    make \
+    file \
+    git \
+    gcc
 
 RUN mkdir -p /src/
 COPY ./ /src/
 WORKDIR /src/
 
 # Print versions of software used for this build
-RUN uname -a
-RUN go version
-RUN git --version
-RUN make --version
-RUN gcc --version
-RUN file --version
 # NOTE: sha256sum is part of busybox on Alpine
 RUN busybox | head -n 1
+RUN make --version
+RUN file --version
+RUN git --version
+RUN gcc --version
+RUN go version
+RUN uname -a
 
 # Passed to `docker build` using ex: `--build-arg goarch=arm64`
 ARG goarch=amd64
@@ -37,31 +37,31 @@ RUN mkdir -p /bin \
     && mv  bin/linux-${goarch}/invoicer  /bin/
 
 # Print rudimentary info about the built binary
-RUN du /bin/invoicer \
-    && file -b /bin/invoicer \
-    && sha256sum /bin/invoicer
+RUN sha256sum   /bin/invoicer
+RUN file -b     /bin/invoicer
+RUN du          /bin/invoicer
 
 
 # This stage builds invoicer in a Debian environment
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM golang:1.13-buster AS debian-builder
 
-RUN apt-get update && \
-    apt-get -y install \
-        git \
+RUN apt-get update \
+    && apt-get -y install \
         make \
-        file
+        file \
+        git
 
 RUN mkdir -p /src/
 COPY ./ /src/
 WORKDIR /src/
 
-RUN uname -a
-RUN go version
-RUN git --version
+RUN sha256sum --version
 RUN make --version
 RUN file --version
-RUN sha256sum --version
+RUN git --version
+RUN go version
+RUN uname -a
 
 ARG goarch=amd64
 
@@ -70,9 +70,9 @@ RUN make bin/linux-${goarch}/invoicer
 RUN mkdir -p /bin \
     && mv  bin/linux-${goarch}/invoicer  /bin/
 
-RUN du /bin/invoicer \
-    && file -b /bin/invoicer \
-    && sha256sum /bin/invoicer
+RUN sha256sum   /bin/invoicer
+RUN file -b     /bin/invoicer
+RUN du          /bin/invoicer
 
 
 # This stage compares all previously built binaries, and if they are identical, strips the binary
@@ -80,8 +80,8 @@ FROM alpine:3.10 AS cross-check
 
 # Install utilities used later
 RUN apk add --no-cache \
-    upx \
-    file
+    file \
+    upx
 
 # Prepare destination directories for previously built binaries
 RUN mkdir -p  /bin  /alpine  /debian
@@ -97,17 +97,17 @@ RUN diff -q  /alpine/invoicer  /debian/invoicer
 RUN mv /alpine/invoicer /bin/
 
 # Print binary info PRIOR compression
-RUN du /bin/invoicer \
-    && file -b /bin/invoicer \
-    && sha256sum /bin/invoicer
+RUN sha256sum   /bin/invoicer
+RUN file -b     /bin/invoicer
+RUN du          /bin/invoicer
 
 # Compress binary, and be verbose about it
 RUN upx -v /bin/invoicer
 
 # Print binary info PAST compression
-RUN du /bin/invoicer \
-    && file -b /bin/invoicer \
-    && sha256sum /bin/invoicer
+RUN sha256sum /bin/invoicer
+RUN file -b   /bin/invoicer
+RUN du        /bin/invoicer
 
 
 # This is a final stage, destined to be distributed, if successful
