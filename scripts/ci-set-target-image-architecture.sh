@@ -50,8 +50,8 @@ fi
 #
 # Note:
 #   `-i` - apply changes in-place (actually change the file)
-#   `s/` - substitute; followed by two `/`-separated sections:
-#     1st section looks for a match.  Escaped \(\) define a _capture group_
+#   `s/` - substitute; followed by two `|`-separated sections:
+#     1st section looks for a match.  Escaped \( \) define a _capture group_
 #     2nd section defines replacement.  `\1` is the value of the _capture group_ from the 1st section
 ${SED} -i "s|^FROM \(.*final\)$|FROM --platform=linux/$CPU \1|" "${FILE}"
 
