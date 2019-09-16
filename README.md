@@ -1,15 +1,22 @@
-invoicer
-========
+lncm/invoicer
+==============
 
-[ ![Build Status] ][invoicer-travis]   [ ![Docker Image Size] ][invoicer-docker-hub]   [ ![Docker Pulls Count] ][invoicer-docker-hub]   [ ![Maintainability] ][codeclimate-maintainability]
+![Build Status]
+[![gh_last_release_svg]][gh_last_release_url]
+[![Docker Image Size]][invoicer-docker-hub]
+[![Docker Pulls Count]][invoicer-docker-hub]
+[![Maintainability]][codeclimate-maintainability]
 
-[Build Status]: https://travis-ci.com/lncm/invoicer.svg?branch=master
-[Docker Image Size]: https://img.shields.io/microbadger/image-size/lncm/invoicer.svg?style=flat
+[Build Status]: https://github.com/lncm/invoicer/workflows/Build%20%26%20deploy%20invoicer%20on%20a%20git%20tag%20push/badge.svg
+
+[gh_last_release_svg]: https://img.shields.io/github/v/release/lncm/invoicer?sort=semver
+[gh_last_release_url]: https://github.com/lncm/invoicer/releases/latest
+
+[Docker Image Size]: https://img.shields.io/microbadger/image-size/lncm/invoicer.svg
 [Docker Pulls Count]: https://img.shields.io/docker/pulls/lncm/invoicer.svg?style=flat
-[Maintainability]: https://api.codeclimate.com/v1/badges/02fbc85043d086e318a4/maintainability
-
-[invoicer-travis]: https://travis-ci.com/lncm/invoicer
 [invoicer-docker-hub]: https://hub.docker.com/r/lncm/invoicer
+
+[Maintainability]: https://api.codeclimate.com/v1/badges/02fbc85043d086e318a4/maintainability
 [codeclimate-maintainability]: https://codeclimate.com/github/lncm/invoicer/maintainability
 
 
@@ -22,14 +29,23 @@ Installing
 
 #### Easy 
 
-Download binary from [releases page].
+Download binary from [Github Releases].
 
-[releases page]: https://github.com/lncm/invoicer/releases
+Or
+
+Pull Docker image from [Docker Hub].
+
+```shell script
+docker pull lncm/invoicer
+```
+
+[Github Releases]: https://github.com/lncm/invoicer/releases
+[Docker Hub]: https://hub.docker.com/r/lncm/invoicer
 
 
 #### Manual
 
-Have Go `v1.12` installed, and:
+Have Go `v1.13` installed, and:
 
 ```bash
 git clone https://github.com/lncm/invoicer.git
