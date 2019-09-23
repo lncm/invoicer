@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pelletier/go-toml"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
 	"gopkg.in/go-playground/validator.v9"
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -81,7 +80,7 @@ func init() {
 	if err != nil {
 		configFile, err = common.DeprecatedConfigLocationCheck(*configFilePath, err)
 		if err != nil {
-			panic(xerrors.Errorf("unable to load %s:\n\t%w", *configFilePath, err))
+			panic(fmt.Errorf("unable to load %s:\n\t%w", *configFilePath, err))
 		}
 
 		log.Warningln("WARNING: Default config location (~/.invoicer/) has been changed to ~/.lncm/ !\n" +
@@ -91,7 +90,7 @@ func init() {
 	// Try to understand the config file
 	err = configFile.Unmarshal(&conf)
 	if err != nil {
-		panic(xerrors.Errorf("unable to process %s:\n\t%w", *configFilePath, err))
+		panic(fmt.Errorf("unable to process %s:\n\t%w", *configFilePath, err))
 	}
 
 	// Use lnd when no client is specified
@@ -108,7 +107,7 @@ func init() {
 		// lnClient = cLightning.New()
 
 	default:
-		panic(xerrors.Errorf("invalid ln-client specified: %s", conf.LnClient))
+		panic(fmt.Errorf("invalid ln-client specified: %s", conf.LnClient))
 	}
 
 	// Init BTC client for monitoring on-chain payments
@@ -167,7 +166,7 @@ func newPayment(c *gin.Context) {
 	if data.Only != "" && data.Only != "btc" && data.Only != "ln" {
 		replyStatus(c, common.StatusReply{
 			Code:  400,
-			Error: xerrors.New("only= is an optional parameter that can only take `btc` and `ln` as values").Error(),
+			Error: "only= is an optional parameter that can only take `btc` and `ln` as values",
 		})
 		return
 	}
@@ -183,7 +182,7 @@ func newPayment(c *gin.Context) {
 		if len(data.Description) > common.MaxInvoiceDescLen {
 			replyStatus(c, common.StatusReply{
 				Code:  400,
-				Error: xerrors.Errorf("description too long. Max length is %d", common.MaxInvoiceDescLen).Error(),
+				Error: fmt.Errorf("description too long. Max length is %d", common.MaxInvoiceDescLen).Error(),
 			})
 			return
 		}
@@ -193,7 +192,7 @@ func newPayment(c *gin.Context) {
 		if err != nil {
 			replyStatus(c, common.StatusReply{
 				Code:  500,
-				Error: xerrors.Errorf("can't create new LN invoice: %w", err).Error(),
+				Error: fmt.Errorf("can't create new LN invoice: %w", err).Error(),
 			})
 			return
 		}
@@ -203,7 +202,7 @@ func newPayment(c *gin.Context) {
 		if err != nil {
 			replyStatus(c, common.StatusReply{
 				Code:  500,
-				Error: xerrors.Errorf("can't get LN invoice: %w", err).Error(),
+				Error: fmt.Errorf("can't get LN invoice: %w", err).Error(),
 			})
 			return
 		}
@@ -217,7 +216,7 @@ func newPayment(c *gin.Context) {
 		if err != nil {
 			replyStatus(c, common.StatusReply{
 				Code:  500,
-				Error: xerrors.Errorf("can't get Bitcoin address: %w", err).Error(),
+				Error: fmt.Errorf("can't get Bitcoin address: %w", err).Error(),
 			})
 			return
 		}
@@ -231,7 +230,7 @@ func newPayment(c *gin.Context) {
 		if err != nil {
 			replyStatus(c, common.StatusReply{
 				Code:  500,
-				Error: xerrors.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
+				Error: fmt.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
 			})
 			return
 		}
@@ -349,7 +348,7 @@ func status(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
+			Error: fmt.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
@@ -446,7 +445,7 @@ func history(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
+			Error: fmt.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
@@ -455,7 +454,7 @@ func history(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  400,
-			Error: xerrors.Errorf("invalid request: %w", err).Error(),
+			Error: fmt.Errorf("invalid request: %w", err).Error(),
 		})
 		return
 	}
@@ -483,7 +482,7 @@ func history(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  500,
-			Error: xerrors.Errorf("Can't get history from LN node: %w", err).Error(),
+			Error: fmt.Errorf("can't get history from LN node: %w", err).Error(),
 		})
 		return
 	}
@@ -540,7 +539,7 @@ func info(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  500,
-			Error: xerrors.Errorf("Can't get info from LN node: %w", err).Error(),
+			Error: fmt.Errorf("Can't get info from LN node: %w", err).Error(),
 		})
 		return
 	}

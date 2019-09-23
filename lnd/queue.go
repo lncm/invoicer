@@ -3,10 +3,10 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
 )
 
 type (
@@ -103,7 +103,7 @@ func (im InvoiceMonitor) Status(ctx context.Context, hash string) (*lnrpc.Invoic
 
 func NewNotifier(client lnrpc.LightningClient) (InvoiceMonitor, error) {
 	if client == nil {
-		return InvoiceMonitor{}, xerrors.New("valid Lightning Client has to be provided")
+		return InvoiceMonitor{}, errors.New("valid Lightning Client has to be provided")
 	}
 
 	n := InvoiceMonitor{

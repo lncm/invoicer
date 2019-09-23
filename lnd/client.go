@@ -9,7 +9,6 @@ import (
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -42,7 +41,7 @@ type Lnd struct {
 func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoice, hash string, err error) {
 	inv, err := lnd.invoiceClient.AddInvoice(ctx, &lnrpc.Invoice{
 		Memo:   desc,
-		Value:  int64(amount),
+		Value:  amount,
 		Expiry: common.DefaultInvoiceExpiry,
 	})
 	if err != nil {
@@ -202,7 +201,7 @@ func getClient(creds credentials.TransportCredentials, fullHostname, file string
 		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
 	}...)
 	if err != nil {
-		panic(errors.Wrapf(err, "unable to connect to %s", fullHostname))
+		panic(fmt.Errorf("unable to connect to %s: %w", fullHostname, err))
 	}
 
 	return lnrpc.NewLightningClient(connection)

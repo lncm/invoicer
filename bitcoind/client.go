@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"golang.org/x/xerrors"
-
 	"github.com/lncm/invoicer/common"
 )
 
@@ -126,7 +124,7 @@ func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []
 	}
 
 	if resBody.Error != nil {
-		return nil, xerrors.Errorf("bitcoind error (%d): %w", resBody.Error.Code, resBody.Error.Message)
+		return nil, fmt.Errorf("bitcoind error (%d): %w", resBody.Error.Code, resBody.Error.Message)
 	}
 
 	return resBody.Result, nil
@@ -153,7 +151,7 @@ func New(conf common.Bitcoind) (Bitcoind, error) {
 
 	_, err := client.BlockCount()
 	if err != nil {
-		return Bitcoind{}, xerrors.Errorf("can't connect to Bitcoind: %w", err)
+		return Bitcoind{}, fmt.Errorf("can't connect to Bitcoind: %w", err)
 	}
 
 	return client, nil
