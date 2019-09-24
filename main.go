@@ -539,7 +539,7 @@ func info(c *gin.Context) {
 	if err != nil {
 		replyStatus(c, common.StatusReply{
 			Code:  500,
-			Error: fmt.Errorf("Can't get info from LN node: %w", err).Error(),
+			Error: fmt.Errorf("can't get info from LN node: %w", err).Error(),
 		})
 		return
 	}
