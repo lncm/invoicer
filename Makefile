@@ -1,4 +1,4 @@
-VERSION = v0.6.0
+VERSION = v0.6.1
 
 # Fix as per: https://github.com/golang/go/issues/33772
 BUILD_FLAGS := -ldflags "-buildid= -X main.version=$(VERSION) -X main.gitHash=$$(git rev-parse HEAD)"
