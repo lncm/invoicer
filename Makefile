@@ -1,7 +1,7 @@
-VERSION = v0.6.1
+VERSION = v0.6.2
 
-# Fix as per: https://github.com/golang/go/issues/33772
-BUILD_FLAGS := -ldflags "-buildid= -X main.version=$(VERSION) -X main.gitHash=$$(git rev-parse HEAD)"
+# NOTE: `-buildid=` is a fix as per: https://github.com/golang/go/issues/33772
+BUILD_FLAGS := -ldflags "-s -w -buildid= -X main.version=$(VERSION) -X main.gitHash=$$(git rev-parse HEAD)"
 
 PREFIX :=  CGO_ENABLED=0  GO111MODULE=on
 GOBUILD := $(PREFIX) go build -v -trimpath -mod=readonly $(BUILD_FLAGS)
