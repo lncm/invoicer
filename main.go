@@ -18,7 +18,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/lncm/invoicer/bitcoind"
-	"github.com/lncm/invoicer/clightning"
+	cLightning "github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/lnd"
 )
@@ -221,18 +221,21 @@ func newPayment(c *gin.Context) {
 			return
 		}
 
-		label := data.Description
-		if len(payment.Hash) > 0 {
-			label = payment.Hash
-		}
+		if conf.Bitcoind.NoWallet != true {
+			label := data.Description
+			if len(payment.Hash) > 0 {
+				label = payment.Hash
+			}
 
-		err = btcClient.ImportAddress(payment.Address, label)
-		if err != nil {
-			replyStatus(c, common.StatusReply{
-				Code:  500,
-				Error: fmt.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
-			})
-			return
+			err = btcClient.ImportAddress(payment.Address, label)
+			if err != nil {
+				replyStatus(c, common.StatusReply{
+					Code:  500,
+					Error: fmt.Errorf("can't import address (%s) to Bitcoin node: %w", payment.Address, err).Error(),
+				})
+				return
+			}
+
 		}
 	}
 
