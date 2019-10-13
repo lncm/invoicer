@@ -23,14 +23,13 @@ jobs:
 
       - name: Set target platform
         if: matrix.arch != 'amd64'
-        run: ./scripts/ci-set-target-image-architecture.sh "${{ matrix.arch }}"
+        run: ./scripts/ci-set-target-image-architecture.sh "${{matrix.arch}}"
 
       - name: Build invoicer in Docker
         run: >
           DOCKER_BUILDKIT=1 docker build --no-cache .
-          --build-arg "goarch=${{ matrix.arch }}"
-          --tag       "invoicer:${{ matrix.arch }}"
-          --file      Dockerfile
+          --build-arg "goarch=${{matrix.arch}}"
+          --tag       "invoicer:${{matrix.arch}}"
 
       - name: Show built image details
         run: docker images invoicer
@@ -38,10 +37,10 @@ jobs:
       - name: Save image to a .tgz file
         run: |
           mkdir -p image/
-          docker save "invoicer:${{ matrix.arch }}" | gzip > "image/invoicer-${{ matrix.arch }}.tgz"
+          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${{matrix.arch}}.tgz"
 
       - name: Print sha256sum of produced Docker image
-        run: sha256sum "image/invoicer-${{ matrix.arch }}.tgz"
+        run: sha256sum "image/invoicer-${{matrix.arch}}.tgz"
 
       - name: Add Docker image as build artifact
         uses: actions/upload-artifact@v1.0.0
@@ -52,10 +51,10 @@ jobs:
       - name: Extract binary from the built image
         run: |
           mkdir -p binary/
-          ID=$(docker create "invoicer:${{ matrix.arch }}")
+          ID=$(docker create "invoicer:${{matrix.arch}}")
           docker cp  "${ID}:/bin/invoicer"  binary/
           docker rm  "${ID}"
-          gzip -S "-${{ matrix.arch }}.gz" binary/invoicer
+          gzip -S "-${{matrix.arch}}.gz" binary/invoicer
 
       - name: Print sha256sum of extracted binary
         run: sha256sum binary/*
@@ -112,7 +111,7 @@ jobs:
         run: docker images "${GITHUB_REPOSITORY,,}"
 
       - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASS }}" | docker login -u="meedamian" --password-stdin
+        run: echo "${{secrets.DOCKER_TOKEN}}" | docker login -u="meedamian" --password-stdin
 
       - name: Push all images
         run: |
@@ -174,6 +173,6 @@ jobs:
       - name: Upload binaries to Github Release
         uses: meeDamian/github-release@v1.0.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{secrets.GITHUB_TOKEN}}
           gzip: false
           files: binaries/*

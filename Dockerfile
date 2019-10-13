@@ -75,7 +75,7 @@ RUN file -b     /bin/invoicer
 RUN du          /bin/invoicer
 
 
-# This stage compares all previously built binaries, and if they are identical, strips the binary
+# This stage compares previously built binaries, and only proceeds if they are
 FROM alpine:3.10 AS cross-check
 
 # Install utilities used later
@@ -86,14 +86,14 @@ RUN apk add --no-cache \
 # Prepare destination directories for previously built binaries
 RUN mkdir -p  /bin  /alpine  /debian
 
-# Copy binaries from all builds
+# Copy binaries from prior builds
 COPY  --from=alpine-builder  /bin/invoicer  /alpine/
 COPY  --from=debian-builder  /bin/invoicer  /debian/
 
-# Compare both built binaries
+# Compare built binaries
 RUN diff -q  /alpine/invoicer  /debian/invoicer
 
-# If all are identical, proceed to move the binary into
+# If identical, proceed to move one binary into /bin/
 RUN mv /alpine/invoicer /bin/
 
 # Print binary info PRIOR compression
@@ -101,7 +101,7 @@ RUN sha256sum   /bin/invoicer
 RUN file -b     /bin/invoicer
 RUN du          /bin/invoicer
 
-# Compress binary, and be verbose about it
+# Compress, and be verbose about it
 RUN upx -v /bin/invoicer
 
 # Print binary info PAST compression
@@ -116,7 +116,7 @@ FROM alpine:3.10 AS final
 # Hai 👋
 LABEL maintainer="Damian Mee (@meeDamian)"
 
-# Copy the binaries from the builder image.
+# Copy the binary from the cross-check stage
 COPY  --from=cross-check  /bin/invoicer  /bin/
 
 # Expose the volume to communicate config, log, etc through
@@ -126,6 +126,5 @@ VOLUME /root/.lncm
 EXPOSE 8080
 
 # Specify the start command and entrypoint as the invoicer daemon.
-ENTRYPOINT ["invoicer"]
-CMD ["invoicer"]
+ENTRYPOINT ["/bin/invoicer"]
 

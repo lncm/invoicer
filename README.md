@@ -22,10 +22,10 @@ lncm/invoicer
 
 > _"fiat is irrelephant 🐘"_
 
-### Exposes simple API on top of LND
+### Exposes simple API to receive payments on top of LND
 
-Installing
-----------
+Install
+---
 
 #### Easy 
 
@@ -57,7 +57,7 @@ make run
 
 
 Usage
------
+---
 
 ```
 $ ./invoicer --help
@@ -81,7 +81,7 @@ Usage of bin/invoicer:
 
 
 Docker
-------
+---
 
 Create `invoicer.conf` file in the directory you're in. See `invoicer.example.conf` for inspiration.  Also copy `tls.cert`, `invoice.macaroon`, and `readonly.macaroon` from lnd directory to the dir you're in, and:
 

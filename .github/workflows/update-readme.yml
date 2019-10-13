@@ -18,5 +18,5 @@ jobs:
         uses: meeDamian/sync-readme@v1.0.5
         with:
           user: meedamian
-          pass: ${{ secrets.DOCKER_PASS }}
+          pass: ${{secrets.DOCKER_TOKEN}}
           description: true
