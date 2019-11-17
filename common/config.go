@@ -46,16 +46,16 @@ type (
 
 	// Lnd config
 	Lnd struct {
-		Host      string `toml:"host"`
-		Port      int64  `toml:"port"`
+		Host string `toml:"host"`
+		Port int64  `toml:"port"`
 
 		// TLS certificate is usually located in `~/.lnd/tls.cert`
-		Tls       string `toml:"tls"`
+		Tls string `toml:"tls"`
 
 		// Macaroons are usually located in `~/.lnd/data/chain/bitcoin/mainnet/`
 		Macaroons struct {
 			// This is needed to generate new invoices
-			Invoice  string `toml:"invoice"`
+			Invoice string `toml:"invoice"`
 
 			// This is needed to check status of invoices (and if enabled access `/history` endpoint)
 			ReadOnly string `toml:"readonly"`
