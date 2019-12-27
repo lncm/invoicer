@@ -29,8 +29,8 @@ type (
 	}
 
 	requestBody struct {
-		JsonRpc string        `json:"jsonrpc"`
-		Id      string        `json:"id"`
+		JSONRPC string        `json:"jsonrpc"`
+		ID      string        `json:"id"`
 		Method  string        `json:"method"`
 		Params  []interface{} `json:"params"`
 	}
@@ -45,8 +45,10 @@ type (
 )
 
 func (b Bitcoind) BlockCount() (count int64, err error) {
-	res, err := b.sendRequest(MethodGetBlockCount)
+	res, _ := b.sendRequest(MethodGetBlockCount)
+
 	err = json.Unmarshal(res, &count)
+
 	return
 }
 
@@ -62,11 +64,13 @@ func (b Bitcoind) Address(bech32 bool) (addr string, err error) {
 	}
 
 	err = json.Unmarshal(res, &addr)
+
 	return
 }
 
 func (b Bitcoind) ImportAddress(address, label string) (err error) {
 	_, err = b.sendRequest(MethodImportAddress, address, label, false)
+
 	return
 }
 
@@ -88,7 +92,7 @@ func (b Bitcoind) CheckAddress(address string) (state common.AddrsStatus, err er
 
 func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []byte, err error) {
 	reqBody, err := json.Marshal(requestBody{
-		JsonRpc: "1.0",
+		JSONRPC: "1.0",
 		Method:  method,
 		Params:  params,
 	})

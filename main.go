@@ -103,7 +103,7 @@ func init() {
 	case lnd.ClientName:
 		lnClient = lnd.New(conf.Lnd)
 
-	case cLightning.ClientName:
+	case clightning.ClientName:
 		// lnClient = cLightning.New()
 
 	default:
@@ -428,7 +428,6 @@ func status(c *gin.Context) {
 	}).Println("Payment updated")
 
 	replyStatus(c, *status)
-	return
 }
 
 // TODO: pagination

@@ -22,7 +22,7 @@ const (
 
 	DefaultHostname  = "localhost"
 	DefaultPort      = 10009
-	DefaultTls       = "~/.invoicer/tls.cert"
+	DefaultTLS       = "~/.invoicer/tls.cert"
 	DefaultInvoice   = "~/.invoicer/invoice.macaroon"
 	DefaultReadOnly  = "~/.invoicer/readonly.macaroon"
 	DefaultKillCount = 4
@@ -71,12 +71,12 @@ func (lnd Lnd) StatusWait(ctx context.Context, hash string) (s common.Status, er
 }
 
 func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err error) {
-	invId, err := hex.DecodeString(hash)
+	invID, err := hex.DecodeString(hash)
 	if err != nil {
 		return
 	}
 
-	inv, err := lnd.invoiceClient.LookupInvoice(ctx, &lnrpc.PaymentHash{RHash: invId})
+	inv, err := lnd.invoiceClient.LookupInvoice(ctx, &lnrpc.PaymentHash{RHash: invID})
 	if err != nil {
 		return
 	}
@@ -90,7 +90,7 @@ func (lnd Lnd) Status(ctx context.Context, hash string) (s common.Status, err er
 		Ts:      inv.GetCreationDate(),
 		Settled: inv.GetState() == lnrpc.Invoice_SETTLED,
 		Expiry:  inv.GetExpiry(),
-		Value:   inv.GetValue(),
+		Value:   val,
 	}, nil
 }
 
@@ -216,10 +216,10 @@ func New(conf common.Lnd) (lnd Lnd) {
 		conf.Port = DefaultPort
 	}
 
-	if conf.Tls == "" {
-		conf.Tls = DefaultTls
+	if conf.TLS == "" {
+		conf.TLS = DefaultTLS
 	}
-	conf.Tls = common.CleanAndExpandPath(conf.Tls)
+	conf.TLS = common.CleanAndExpandPath(conf.TLS)
 
 	if conf.Macaroons.Invoice == "" {
 		conf.Macaroons.Invoice = DefaultInvoice
@@ -231,7 +231,7 @@ func New(conf common.Lnd) (lnd Lnd) {
 	}
 	conf.Macaroons.ReadOnly = common.CleanAndExpandPath(conf.Macaroons.ReadOnly)
 
-	creds, err := credentials.NewClientTLSFromFile(conf.Tls, conf.Host)
+	creds, err := credentials.NewClientTLSFromFile(conf.TLS, conf.Host)
 	if err != nil {
 		panic(err)
 	}
@@ -258,5 +258,5 @@ func New(conf common.Lnd) (lnd Lnd) {
 
 	go lnd.checkConnectionStatus(*conf.KillCount)
 
-	return
+	return lnd
 }

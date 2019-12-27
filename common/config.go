@@ -50,7 +50,7 @@ type (
 		Port int64  `toml:"port"`
 
 		// TLS certificate is usually located in `~/.lnd/tls.cert`
-		Tls string `toml:"tls"`
+		TLS string `toml:"tls"`
 
 		// Macaroons are usually located in `~/.lnd/data/chain/bitcoin/mainnet/`
 		Macaroons struct {
@@ -75,6 +75,7 @@ func CleanAndExpandPath(path string) string {
 	// Expand initial ~ to OS specific home directory.
 	if strings.HasPrefix(path, "~") {
 		var homeDir string
+
 		u, err := user.Current()
 		if err == nil {
 			homeDir = u.HomeDir

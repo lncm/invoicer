@@ -1,4 +1,4 @@
-package cLightning
+package clightning
 
 import (
 	"context"
