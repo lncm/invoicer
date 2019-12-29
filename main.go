@@ -18,7 +18,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/lncm/invoicer/bitcoind"
-	"github.com/lncm/invoicer/clightning"
 	"github.com/lncm/invoicer/common"
 	"github.com/lncm/invoicer/lnd"
 )
@@ -103,8 +102,8 @@ func init() {
 	case lnd.ClientName:
 		lnClient = lnd.New(conf.Lnd)
 
-	case clightning.ClientName:
-		// lnClient = cLightning.New()
+	// case clightning.ClientName:
+	// lnClient = cLightning.New()
 
 	default:
 		panic(fmt.Errorf("invalid ln-client specified: %s", conf.LnClient))
