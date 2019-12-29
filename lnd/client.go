@@ -22,9 +22,9 @@ const (
 
 	DefaultHostname  = "localhost"
 	DefaultPort      = 10009
-	DefaultTLS       = "~/.invoicer/tls.cert"
-	DefaultInvoice   = "~/.invoicer/invoice.macaroon"
-	DefaultReadOnly  = "~/.invoicer/readonly.macaroon"
+	DefaultTLS       = "~/.lncm/tls.cert"
+	DefaultInvoice   = "~/.lncm/invoice.macaroon"
+	DefaultReadOnly  = "~/.lncm/readonly.macaroon"
 	DefaultKillCount = 4
 )
 
