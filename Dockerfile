@@ -154,3 +154,4 @@ WORKDIR ${DIR}
 # Specify the start command and entrypoint as the invoicer daemon.
 ENTRYPOINT ["invoicer"]
 
+CMD ["-config", "/data/invoicer.conf"]
