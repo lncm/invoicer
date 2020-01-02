@@ -8,6 +8,10 @@ jobs:
   build:
     name: Build invoicer
     runs-on: ubuntu-18.04
+
+    env:
+      DOCKER_BUILDKIT: 1
+
     strategy:
       fail-fast: false
       matrix:
@@ -26,7 +30,7 @@ jobs:
 
       - name: Build invoicer in Docker
         run: >
-          DOCKER_BUILDKIT=1 docker build --no-cache .
+          docker build --no-cache .
           --build-arg "goarch=${{matrix.arch}}"
           --tag       "invoicer:${{matrix.arch}}"
 
