@@ -3,7 +3,7 @@
 #   binary is stripped, and moved to a final stage that's ready to be uploaded to Docker Hub or Github Registry.
 
 # This stage builds invoicer in an Alpine environment
-FROM golang:1.13-alpine3.10 AS alpine-builder
+FROM golang:1.13-alpine3.11 AS alpine-builder
 
 RUN apk add --no-cache \
     musl-dev \
@@ -76,7 +76,7 @@ RUN du          /bin/invoicer
 
 
 # This stage compares previously built binaries, and only proceeds if they are
-FROM alpine:3.10 AS cross-check
+FROM alpine:3.11 AS cross-check
 
 # Install utilities used later
 RUN apk add --no-cache \
@@ -111,7 +111,7 @@ RUN du        /bin/invoicer
 
 
 # This is a final stage, destined to be distributed, if successful
-FROM alpine:3.10 AS final
+FROM alpine:3.11 AS final
 
 # Hai 👋
 LABEL maintainer="Damian Mee (@meeDamian)"
