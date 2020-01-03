@@ -61,27 +61,10 @@ all: tag ci
 clean:
 	rm -rf bin/*
 
-
-#
-# My personal shortcuts, probably not useful to anyone else, but maybe 🤷🏻‍♂️
-#
-REMOTE_USER ?= ln
-REMOTE_HOST ?= pi-hdd
-
 static/index.html:
 	mkdir -p static
 	curl -s https://api.github.com/repos/lncm/donations/releases/latest \
 		| jq -r '.assets[0].browser_download_url' \
 		| wget -O $@ -qi -
 
-REMOTE_DIR_BINARY ?= /home/ln/bin/
-deploy-invoicer: bin/linux-arm32v7/invoicer
-	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR_BINARY}"
-
-REMOTE_DIR_STATIC ?= /home/ln/static/
-deploy-static: static/index.html
-	rsync $< "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR_STATIC}"
-
-deploy: deploy-invoicer deploy-static
-
-.PHONY: run tag all deploy deploy-invoicer deploy-static clean ci static/index.html
+.PHONY: run tag all clean ci static/index.html
