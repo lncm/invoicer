@@ -129,20 +129,21 @@ func init() {
 		"log-file":  conf.LogFile,
 	}
 
-	// After all initialization has been done, start logging to log file
 	if conf.LogFile != "none" {
 		// Write current config to stdout
 		log.WithFields(fields).Println("invoicer started")
 
+		// After all initialization has been done, start logging to log file
 		log.SetOutput(&lumberjack.Logger{
 			Filename:  common.CleanAndExpandPath(conf.LogFile),
 			LocalTime: true,
 			Compress:  true,
 		})
+
+		log.SetFormatter(&log.JSONFormatter{
+			PrettyPrint: false, // Having `false` here makes sure that `jq` always works on `tail -f`.
+		})
 	}
-	log.SetFormatter(&log.JSONFormatter{
-		PrettyPrint: false, // Having `false` here makes sure that `jq` always works on `tail -f`.
-	})
 
 	// Write current config to log file
 	log.WithFields(fields).Println("invoicer started")
