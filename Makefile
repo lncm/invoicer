@@ -71,8 +71,7 @@ REMOTE_HOST ?= pi-hdd
 static/index.html:
 	mkdir -p static
 	curl -s https://api.github.com/repos/lncm/donations/releases/latest \
-		| grep "browser_download_url.*html" \
-		| cut -d '"' -f 4 \
+		| jq -r '.assets[0].browser_download_url' \
 		| wget -O $@ -qi -
 
 REMOTE_DIR_BINARY ?= /home/ln/bin/
