@@ -2,6 +2,9 @@
 #   Alpine and once on Debian.  After the build completes both binaries are compared.  If identical, the result
 #   binary is stripped, and moved to a final stage that's ready to be uploaded to Docker Hub or Github Registry.
 
+ARG USER=invoicer
+ARG DIR=/data/
+
 # This stage builds invoicer in an Alpine environment
 FROM golang:1.13-alpine3.11 AS alpine-builder
 
@@ -114,8 +117,8 @@ RUN du        /bin/invoicer
 #   which would break cross-compiled images.
 FROM alpine:3.11 AS perms
 
-ARG USER=invoicer
-ARG DIR=/data/
+ARG USER
+ARG DIR
 
 # NOTE: Default GID == UID == 1000
 RUN adduser --disabled-password \
@@ -127,8 +130,8 @@ RUN adduser --disabled-password \
 # This is a final stage, destined to be distributed, if successful
 FROM alpine:3.11 AS final
 
-ARG USER=invoicer
-ARG DIR=/data/
+ARG USER
+ARG DIR
 
 # Hai 👋
 LABEL maintainer="Damian Mee (@meeDamian)"
