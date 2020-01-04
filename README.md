@@ -72,13 +72,10 @@ Usage of bin/invoicer:
 * Or (if you use ex. neutrino) disable bitcoind dependency by adding: `off-chain-only=true` to config,
 * Make sure the certificate provided via `tls = ` in `[lnd]` section has your domain/IP added,
 * To have `GET /history` endpoint available, make sure to add `user = "password"` pairs to `[users]` section,
-* By default all API paths start with `localhost:8080/api/`,
-* By default all other paths serve content from path passed as `static-dir = `, 
-* To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice.
-
-**NOTE_2:** Invoicer `v0.4` has changed default config location from `~/.invoicer/` to `~/.lncm/`, please move your `invoicer.conf` config accordingly.
-**NOTE_3:** Invoicer's logs are, by default stored in `~/.lncm/invoicer.log`, and are rotated every time log file reaches 100MB.
-
+* By default, all API paths start with `localhost:8080/api/`,
+* By default, all other paths serve content from path passed as `static-dir = `,
+* To keep binary running use `screen`, `tmux`, `Docker` or service manager of your choice,
+* Logging to file can be disabled by putting `log-file=none` to `invoicer.conf`.
 
 Docker
 ---
@@ -89,11 +86,11 @@ Run:
 
 ```bash
 docker run -it --rm \
-    -v $(pwd)/:/root/.lncm/ \
+    -v $(pwd)/:/data/ \
     -p 8080:8080 \
     --name invoicer \
     --detach \
-    lncm/invoicer:latest
+    lncm/invoicer:v0.7.0
 ```
 
 
@@ -350,20 +347,6 @@ On error, returns:
 ```
 
 > **NOTE:** most recent invoice is on the bottom  
-
-
-Deployment
----
-
-To deploy the binary to your Raspberry Pi, run (replacing all values with ones specific to your setup):
-
-```bash
-$ make deploy REMOTE_USER=root REMOTE_HOST=pi-hdd REMOTE_DIR=/home/ln/bin/ 
-``` 
-
-If you want to expose donations page [see here], and make sure to expose port `:8080` on your firewall.  The page will be located at path root.
-
-[see here]: https://github.com/lncm/donations/releases
 
 
 Development
