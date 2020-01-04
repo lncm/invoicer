@@ -114,8 +114,7 @@ RUN du        /bin/invoicer
 #   which would break cross-compiled images.
 FROM alpine:3.11 AS perms
 
-# The most generic linux-native name for the user I could quickly come up with 🤷🏻‍♂️
-ARG USER=tux
+ARG USER=invoicer
 ARG DIR=/data/
 
 # NOTE: Default GID == UID == 1000
@@ -128,7 +127,7 @@ RUN adduser --disabled-password \
 # This is a final stage, destined to be distributed, if successful
 FROM alpine:3.11 AS final
 
-ARG USER=tux
+ARG USER=invoicer
 ARG DIR=/data/
 
 # Hai 👋
