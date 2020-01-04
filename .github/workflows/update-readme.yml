@@ -14,9 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v1.0.0
 
-      - name: Sync README.md and Description to Docker Hub
-        uses: meeDamian/sync-readme@v1.0.5
-        with:
-          user: meedamian
-          pass: ${{secrets.DOCKER_TOKEN}}
-          description: true
+# Disabled because:
+# 1.  When DOCKER_TOKEN is used the returned login token doesn't have the perm to sync README any more
+# 2. Impossible to use DOCKER_PASS when 2FA is enabled :/
+#
+#      - name: Sync README.md and Description to Docker Hub
+#        uses: meeDamian/sync-readme@v1.0.6
+#        with:
+#          user: meedamian
+#          pass: ${{ secrets.DOCKER_TOKEN }}
+#          description: true
