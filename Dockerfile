@@ -2,6 +2,9 @@
 #   Alpine and once on Debian.  After the build completes both binaries are compared.  If identical, the result
 #   binary is stripped, and moved to a final stage that's ready to be uploaded to Docker Hub or Github Registry.
 
+ARG USER=invoicer
+ARG DIR=/data/
+
 # This stage builds invoicer in an Alpine environment
 FROM golang:1.13-alpine3.11 AS alpine-builder
 
@@ -110,21 +113,47 @@ RUN file -b   /bin/invoicer
 RUN du        /bin/invoicer
 
 
+# This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
+#   which would break cross-compiled images.
+FROM alpine:3.11 AS perms
+
+ARG USER
+ARG DIR
+
+# NOTE: Default GID == UID == 1000
+RUN adduser --disabled-password \
+            --home ${DIR} \
+            --gecos "" \
+            ${USER}
+
+
 # This is a final stage, destined to be distributed, if successful
 FROM alpine:3.11 AS final
+
+ARG USER
+ARG DIR
 
 # Hai 👋
 LABEL maintainer="Damian Mee (@meeDamian)"
 
+# Copy only the relevant parts from the `perms` image
+COPY  --from=perms  /etc/group   /etc/
+COPY  --from=perms  /etc/passwd  /etc/
+COPY  --from=perms  /etc/shadow  /etc/
+
 # Copy the binary from the cross-check stage
 COPY  --from=cross-check  /bin/invoicer  /bin/
 
-# Expose the volume to communicate config, log, etc through
-VOLUME /root/.lncm
+# Expose the volume to communicate config, log, etc through (default: /data/)
+VOLUME ${DIR}
 
-# Expose Invoicer port
+# Expose port Invoicer listens on
 EXPOSE 8080
 
-# Specify the start command and entrypoint as the invoicer daemon.
-ENTRYPOINT ["/bin/invoicer"]
+USER ${USER}
+WORKDIR ${DIR}
 
+# Specify the start command and entrypoint as the invoicer daemon.
+ENTRYPOINT ["invoicer"]
+
+CMD ["-config", "/data/invoicer.conf"]
