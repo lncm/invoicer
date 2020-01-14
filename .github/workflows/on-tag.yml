@@ -24,6 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v1.0.0
 
+      # Extract the tag, and verify it was a git-tag push
+      #   NOTE: ${TAG} ~= vX.Y.Z[+build<N>]
+      - name: Set TAG (env var)
+        run: |
+          TAG="$(echo "${GITHUB_REF}" | grep 'refs/tags/' | awk -F/ '{print $NF}')"
+          if [[ -z "${TAG}" ]]; then
+            echo "This action has to be run on a git-tag push"
+            exit 1
+          fi
+          echo ::set-env name=TAG::"${TAG}"
+
       # Create $ARCH in form that can be used in Dockerfile as `FROM ${ARCH}/alpine`
       - name: Set ARCH (env var)
         run: |
@@ -33,10 +44,26 @@ jobs:
           fi
           echo ::set-env name=ARCH::"${ARCH}"
 
-      - name: Build invoicer in Docker
+      - name: Set VERSION (env var)
+        run: echo ::set-env name=VERSION::"$(echo "${TAG}" | cut -d+ -f1)"
+
+      - name: Print just set ENV VARs
+        run: |
+          printf "Git tag & arch processed:\n"
+          printf "   ARCH: %s (from %s)\n"  "${ARCH}" "${{matrix.arch}}"
+          printf "    TAG: %s\n"            "${TAG}"
+          printf "VERSION: %s\n"            "${VERSION}"
+
+      - name: Build invoicer
         run: >
           docker build --no-cache .
           --build-arg "ARCH=${ARCH}"
+          --build-arg "VERSION=${VERSION}"
+          --label     arch="${{matrix.arch}}"
+          --label     commit="${{github.sha}}"
+          --label     git-tag="${TAG}"
+          --label     guilty="${{github.actor}}"
+          --label     repo-url="${{github.repositoryUrl}}"
           --tag       "invoicer:${{matrix.arch}}"
 
       - name: Show built image details
@@ -45,10 +72,10 @@ jobs:
       - name: Save image to a .tgz file
         run: |
           mkdir -p image/
-          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${{matrix.arch}}.tgz"
+          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${TAG}-${{matrix.arch}}.tgz"
 
       - name: Print sha256sum of produced Docker image
-        run: sha256sum "image/invoicer-${{matrix.arch}}.tgz"
+        run: sha256sum image/*
 
       - name: Add Docker image as build artifact
         uses: actions/upload-artifact@v1.0.0
@@ -95,13 +122,12 @@ jobs:
 
           echo ::set-env name=VERSION::"$(echo "${TAG}" | cut -d+ -f1)"
 
-        # TODO: add support for build tags
-#          BUILD="$(echo "+${TAG}" | cut -d+ -f3)"
-#          if [[ -z "${BUILD}" ]]; then
-#            echo "ERR '+build<N>' must be appended to the git tag"
-#            exit 1
-#          fi
-#          echo ::set-env name=BUILD::"${BUILD}"
+          BUILD="$(echo "+${TAG}" | cut -d+ -f3)"
+          if [[ -z "${BUILD}" ]]; then
+            echo "ERR '+build<N>' must be appended to the git tag"
+            exit 1
+          fi
+          echo ::set-env name=BUILD::"${BUILD}"
 
       - name: Print just set ENV VARs
         run: |
@@ -110,7 +136,7 @@ jobs:
           printf "   SLUG: %s\n"  "${SLUG}"
           printf "    APP: %s\n"  "${APP}"
           printf "VERSION: %s\n"  "${VERSION}"
-#          printf "  BUILD: %s\n"  "${BUILD}"
+          printf "  BUILD: %s\n"  "${BUILD}"
 
       - name: Enable manifests & print Docker version
         run: |
@@ -134,7 +160,7 @@ jobs:
       - name: Version-tag all images
         run: |
           for arch in $(docker images ${APP} --format "{{.Tag}}"); do
-#            docker tag  "${APP}:${arch}"  "${SLUG}:${VERSION}-${arch}-${BUILD}"
+            docker tag  "${APP}:${arch}"  "${SLUG}:${VERSION}-${arch}-${BUILD}"
             docker tag  "${APP}:${arch}"  "${SLUG}:${VERSION}-${arch}"
           done
 
@@ -189,7 +215,6 @@ jobs:
       - name: Print checksums of binaries
         run: sha256sum  binaries/*  docker-images/*
 
-      # TODO: change to official way
       - name: Upload binaries to Github Release
         uses: meeDamian/github-release@v1.0.1
         with:
