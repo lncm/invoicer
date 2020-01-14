@@ -1,108 +1,156 @@
-# This Dockerfile builds invoicer twice for any given platform (<os>-<architecture> combo, ex: `linux-amd64`) - once on
-#   Alpine and once on Debian.  After the build completes both binaries are compared.  If identical, the result
-#   binary is stripped, and moved to a final stage that's ready to be uploaded to Docker Hub or Github Registry.
+# This Dockerfile builds invoicer twice: once on Alpine, once on Debian.  The binaries are compared, and if the same, one is compressed and moved to the `final` stage.
+
+# invoicer version to be build
+ARG VERSION=v0.7.1
+
+# Target CPU archtecture of built IPFS binary
+ARG ARCH=amd64
+
+# Define default versions so that they don't have to be repreated throughout the file
+ARG VER_GO=1.13
+ARG VER_ALPINE=3.11
 
 ARG USER=invoicer
 ARG DIR=/data/
 
+
+#
+## The pairs of Docker stages below define Go Environment necessary for cross-compilation on
+#   two different base images: Alpine, and Debian.  Later build stages can be started as:
+#
+#   `FROM ${ARCH}-debian`  or
+#   `FROM ${ARCH}-alpine`
+#
+## Stage defining Alpine environment
+FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-base
+ENV GOOS=linux  GCO_ENABLED=0
+
+## Stage defining Debian environment
+FROM golang:${VER_GO}-buster AS debian-base
+ENV GOOS=linux  GCO_ENABLED=0
+
+
+FROM alpine-base AS amd64-alpine
+ENV GOARCH=amd64
+
+FROM debian-base AS amd64-debian
+ENV GOARCH=amd64
+
+
+FROM alpine-base AS arm64v8-alpine
+ENV GOARCH=arm64
+
+FROM debian-base AS arm64v8-debian
+ENV GOARCH=arm64
+
+
+FROM alpine-base AS arm32v7-alpine
+ENV GOARCH=arm  GOARM=7
+
+FROM debian-base AS arm32v7-debian
+ENV GOARCH=arm  GOARM=7
+
+
+FROM alpine-base AS arm32v6-alpine
+ENV GOARCH=arm  GOARM=6
+
+FROM debian-base AS arm32v6-debian
+ENV GOARCH=arm  GOARM=6
+
+
+
 # This stage builds invoicer in an Alpine environment
-FROM golang:1.13-alpine3.11 AS alpine-builder
+FROM ${ARCH}-alpine AS alpine-builder
 
-RUN apk add --no-cache \
-    musl-dev \
-    make \
-    file \
-    git \
-    gcc
+ARG ARCH
+ARG VERSION
 
-RUN mkdir -p /src/
-COPY ./ /src/
-WORKDIR /src/
+RUN apk add --no-cache  musl-dev  file  git  gcc
+
+RUN mkdir -p /go/src/
+
+COPY ./ /go/src/
+WORKDIR /go/src/
 
 # Print versions of software used for this build
 # NOTE: sha256sum is part of busybox on Alpine
 RUN busybox | head -n 1
-RUN make --version
 RUN file --version
 RUN git --version
 RUN gcc --version
-RUN go version
 RUN uname -a
+RUN env && go version && go env
 
-# Passed to `docker build` using ex: `--build-arg goarch=arm64`
-ARG goarch=amd64
-
-# See Makefile.  This builds invoicer for the requested `${goarch}`
-RUN make bin/linux-${goarch}/invoicer
-
-# Move built binary to a common directory, so that `${goarch}` no longer needs to be referenced.
-RUN mkdir -p /bin \
-    && mv  bin/linux-${goarch}/invoicer  /bin/
+# All `-tags`, ` -buildid=`, and `-trimpath` added to make the output binary reproducible
+##   ctx: https://github.com/golang/go/issues/26492
+RUN export LD="-s -w -buildid= -X main.version=${VERSION} -X main.gitHash=$(git rev-parse HEAD)"; \
+    echo "Building with ldflags: '${LD}'" && \
+    go build -v  -trimpath  -mod=readonly \
+        -ldflags="${LD}"  -tags="osusergo netgo static_build" \
+        -o /go/bin/
 
 # Print rudimentary info about the built binary
-RUN sha256sum   /bin/invoicer
-RUN file -b     /bin/invoicer
-RUN du          /bin/invoicer
+RUN sha256sum   /go/bin/invoicer
+RUN file -b     /go/bin/invoicer
+RUN du          /go/bin/invoicer
 
 
 # This stage builds invoicer in a Debian environment
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
-FROM golang:1.13-buster AS debian-builder
+FROM ${ARCH}-debian AS debian-builder
+
+ARG ARCH
+ARG VERSION
 
 RUN apt-get update \
-    && apt-get -y install \
-        make \
-        file \
-        git
+    && apt-get -y install  make  file  git
 
-RUN mkdir -p /src/
-COPY ./ /src/
-WORKDIR /src/
+RUN mkdir -p /go/src/
+
+COPY ./ /go/src/
+WORKDIR /go/src/
 
 RUN sha256sum --version
 RUN make --version
 RUN file --version
 RUN git --version
-RUN go version
 RUN uname -a
+RUN env && go version && go env
 
-ARG goarch=amd64
+RUN export LD="-s -w -buildid= -X main.version=${VERSION} -X main.gitHash=$(git rev-parse HEAD)"; \
+    echo "Building with ldflags: '${LD}'" && \
+    go build -v  -trimpath  -mod=readonly \
+        -ldflags="${LD}"  -tags="osusergo netgo static_build"\
+        -o /go/bin/
 
-RUN make bin/linux-${goarch}/invoicer
-
-RUN mkdir -p /bin \
-    && mv  bin/linux-${goarch}/invoicer  /bin/
-
-RUN sha256sum   /bin/invoicer
-RUN file -b     /bin/invoicer
-RUN du          /bin/invoicer
+RUN sha256sum   /go/bin/invoicer
+RUN file -b     /go/bin/invoicer
+RUN du          /go/bin/invoicer
 
 
 # This stage compares previously built binaries, and only proceeds if they are
-FROM alpine:3.11 AS cross-check
+FROM alpine:${VER_ALPINE} AS cross-check
 
 # Install utilities used later
-RUN apk add --no-cache \
-    file \
-    upx
+RUN apk add --no-cache  file  upx
 
 # Prepare destination directories for previously built binaries
 RUN mkdir -p  /bin  /alpine  /debian
 
 # Copy binaries from prior builds
-COPY  --from=alpine-builder  /bin/invoicer  /alpine/
-COPY  --from=debian-builder  /bin/invoicer  /debian/
+COPY  --from=alpine-builder  /go/bin/invoicer  /alpine/
+COPY  --from=debian-builder  /go/bin/invoicer  /debian/
+
+# Print binary info PRIOR comparison & compression
+RUN sha256sum   /debian/invoicer  /alpine/invoicer
+RUN file        /debian/invoicer  /alpine/invoicer
+RUN du          /debian/invoicer  /alpine/invoicer
 
 # Compare built binaries
 RUN diff -q  /alpine/invoicer  /debian/invoicer
 
 # If identical, proceed to move one binary into /bin/
 RUN mv /alpine/invoicer /bin/
-
-# Print binary info PRIOR compression
-RUN sha256sum   /bin/invoicer
-RUN file -b     /bin/invoicer
-RUN du          /bin/invoicer
 
 # Compress, and be verbose about it
 RUN upx -v /bin/invoicer
@@ -115,7 +163,7 @@ RUN du        /bin/invoicer
 
 # This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
 #   which would break cross-compiled images.
-FROM alpine:3.11 AS perms
+FROM alpine:${VER_ALPINE} AS perms
 
 ARG USER
 ARG DIR
@@ -128,7 +176,7 @@ RUN adduser --disabled-password \
 
 
 # This is a final stage, destined to be distributed, if successful
-FROM alpine:3.11 AS final
+FROM ${ARCH}/alpine:${VER_ALPINE} AS final
 
 ARG USER
 ARG DIR
