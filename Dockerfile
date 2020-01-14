@@ -1,4 +1,5 @@
-# This Dockerfile builds invoicer twice: once on Alpine, once on Debian.  The binaries are compared, and if the same, one is compressed and moved to the `final` stage.
+# This Dockerfile builds invoicer twice: once on Alpine, once on Debian.  If the binaries are the same,
+#   one is compressed and moved to the `final` stage.
 
 # invoicer version to be build
 ARG VERSION=v0.7.1
@@ -95,6 +96,7 @@ RUN file -b     /go/bin/invoicer
 RUN du          /go/bin/invoicer
 
 
+
 # This stage builds invoicer in a Debian environment
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM ${ARCH}-debian AS debian-builder
@@ -103,7 +105,7 @@ ARG ARCH
 ARG VERSION
 
 RUN apt-get update \
-    && apt-get -y install  make  file  git
+    && apt-get -y install  file  git
 
 RUN mkdir -p /go/src/
 
@@ -128,7 +130,8 @@ RUN file -b     /go/bin/invoicer
 RUN du          /go/bin/invoicer
 
 
-# This stage compares previously built binaries, and only proceeds if they are
+
+# This stage compares previously built binaries, and only proceeds if they are identical
 FROM alpine:${VER_ALPINE} AS cross-check
 
 # Install utilities used later
@@ -175,7 +178,10 @@ RUN adduser --disabled-password \
             ${USER}
 
 
-# This is a final stage, destined to be distributed, if successful
+
+#
+## This is the final image that gets shipped to Docker Hub
+#
 FROM ${ARCH}/alpine:${VER_ALPINE} AS final
 
 ARG USER

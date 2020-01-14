@@ -1,0 +1,201 @@
+name: Build & deploy invoicer on a git tag push
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Build invoicer
+    runs-on: ubuntu-18.04
+
+    env:
+      DOCKER_BUILDKIT: 1
+
+    strategy:
+      matrix:
+        arch:
+          - amd64
+          - arm64
+          - arm32v6
+          - arm32v7
+
+    steps:
+      - uses: actions/checkout@v1.0.0
+
+      # Create $ARCH in form that can be used in Dockerfile as `FROM ${ARCH}/alpine`
+      - name: Set ARCH (env var)
+        run: |
+          ARCH=${{matrix.arch}}
+          if [[ "${ARCH}" == "arm64" ]]; then
+            ARCH="arm64v8"
+          fi
+          echo ::set-env name=ARCH::"${ARCH}"
+
+      - name: Build invoicer in Docker
+        run: >
+          docker build --no-cache .
+          --build-arg "ARCH=${ARCH}"
+          --tag       "invoicer:${{matrix.arch}}"
+
+      - name: Show built image details
+        run: docker images invoicer
+
+      - name: Save image to a .tgz file
+        run: |
+          mkdir -p image/
+          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${{matrix.arch}}.tgz"
+
+      - name: Print sha256sum of produced Docker image
+        run: sha256sum "image/invoicer-${{matrix.arch}}.tgz"
+
+      - name: Add Docker image as build artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: docker-images
+          path: image/
+
+      - name: Extract binary from the built image
+        run: |
+          mkdir -p binary/
+          ID=$(docker create "invoicer:${{matrix.arch}}")
+          docker cp  "${ID}:/bin/invoicer"  binary/
+          docker rm  "${ID}"
+          gzip -S "-${{matrix.arch}}.gz" binary/invoicer
+
+      - name: Print sha256sum of extracted binary
+        run: sha256sum binary/*
+
+      - name: Add raw binary as build artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: binaries
+          path: binary/
+
+  docker-hub-push:
+    name: Tag & deploy to Docker Hub.  Only after successful build.
+
+    runs-on: ubuntu-18.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v1.0.0
+
+      - name: Setup environment
+        run: |
+          echo ::set-env name=DOCKER_USER::"${GITHUB_ACTOR,,}"
+
+          SLUG="$(echo ${GITHUB_REPOSITORY,,} | sed 's/docker-//')"
+          echo ::set-env name=SLUG::"${SLUG}"
+
+          echo ::set-env name=APP::"$(echo "${SLUG}" | awk -F/ '{print $NF}')"
+
+          TAG="$(echo "${GITHUB_REF}" | grep 'refs/tags/' | awk -F/ '{print $NF}')"
+          echo ::set-env name=TAG::"${TAG}"
+
+          echo ::set-env name=VERSION::"$(echo "${TAG}" | cut -d+ -f1)"
+
+        # TODO: add support for build tags
+#          BUILD="$(echo "+${TAG}" | cut -d+ -f3)"
+#          if [[ -z "${BUILD}" ]]; then
+#            echo "ERR '+build<N>' must be appended to the git tag"
+#            exit 1
+#          fi
+#          echo ::set-env name=BUILD::"${BUILD}"
+
+      - name: Print just set ENV VARs
+        run: |
+          printf "Just set env vars:\n"
+          printf "    TAG: %s\n"  "${TAG}"
+          printf "   SLUG: %s\n"  "${SLUG}"
+          printf "    APP: %s\n"  "${APP}"
+          printf "VERSION: %s\n"  "${VERSION}"
+#          printf "  BUILD: %s\n"  "${BUILD}"
+
+      - name: Enable manifests & print Docker version
+        run: |
+          mkdir -p ~/.docker
+          echo '{ "experimental": "enabled" }' > ~/.docker/config.json
+          sudo systemctl restart docker
+          docker version
+
+      - name: Download images built in build job
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: docker-images
+
+      - name: Print sha256sum of downloaded images
+        run: sha256sum docker-images/*
+
+      - name: Load images locally
+        run: ls -d docker-images/* | xargs -I %  docker load -i "%"
+
+      # `invoicer:arm64` -> `lncm/invoicer:v0.6.0-arm64`
+      - name: Version-tag all images
+        run: |
+          for arch in $(docker images ${APP} --format "{{.Tag}}"); do
+#            docker tag  "${APP}:${arch}"  "${SLUG}:${VERSION}-${arch}-${BUILD}"
+            docker tag  "${APP}:${arch}"  "${SLUG}:${VERSION}-${arch}"
+          done
+
+      - name: List all tagged images
+        run: docker images "${SLUG}"
+
+      - name: Login to Docker Hub
+        run: |
+          echo "Logging in as ${DOCKER_USER}…"
+          echo "${{secrets.DOCKER_TOKEN}}" | docker login -u="${DOCKER_USER}" --password-stdin
+
+      - name: Push all images
+        run: docker images "${SLUG}" --format "{{.Repository}}:{{.Tag}}" | xargs -I %  docker push %
+
+      - name: Get convenience Docker tag suggestions
+        id: tags
+        uses: meeDamian/tag-suggestions@v1.0.3
+
+      - name: Create :X.Y.Z manifest
+        run: ./scripts/ci-create-manifest.sh  "${SLUG}"  "${VERSION}"
+
+      - name: Create :X.Y manifest
+        if: steps.tags.outputs.minor != ''
+        run: ./scripts/ci-create-manifest.sh  "${SLUG}"  "${VERSION}"  "${{steps.tags.outputs.minor}}"
+
+      - name: Create :X manifest
+        if: steps.tags.outputs.major != ''
+        run: ./scripts/ci-create-manifest.sh  "${SLUG}"  "${VERSION}"  "${{steps.tags.outputs.major}}"
+
+      - name: Create :latest manifest
+        if: steps.tags.outputs.latest != ''
+        run: ./scripts/ci-create-manifest.sh  "${SLUG}"  "${VERSION}"   "${{steps.tags.outputs.latest}}"
+
+      - name: List all tagged images
+        run: docker images "${SLUG}"
+
+  github-release:
+    name: Create Github Release. Only after successful build of a pushed git tag
+    runs-on: ubuntu-18.04
+    needs: build
+    steps:
+      - name: Download binaries from build artifacts
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: binaries
+
+      - name: Download Docker Images from build artifacts
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: docker-images
+
+      - name: Print checksums of binaries
+        run: sha256sum  binaries/*  docker-images/*
+
+      # TODO: change to official way
+      - name: Upload binaries to Github Release
+        uses: meeDamian/github-release@v1.0.1
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          prerelease: true
+          gzip: false
+          files: >
+            docker-images/*
+            binaries/*
