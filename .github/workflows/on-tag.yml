@@ -47,12 +47,22 @@ jobs:
       - name: Set VERSION (env var)
         run: echo ::set-env name=VERSION::"$(echo "${TAG}" | cut -d+ -f1)"
 
+      - name: Set BUILD (env var)
+        run: |
+          BUILD="$(echo "+${TAG}" | cut -d+ -f3)"
+          if [[ -z "${BUILD}" ]]; then
+            echo "ERR '+build<N>' must be appended to the git tag"
+            exit 1
+          fi
+          echo ::set-env name=BUILD::"${BUILD}"
+
       - name: Print just set ENV VARs
         run: |
           printf "Git tag & arch processed:\n"
           printf "   ARCH: %s (from %s)\n"  "${ARCH}" "${{matrix.arch}}"
           printf "    TAG: %s\n"            "${TAG}"
           printf "VERSION: %s\n"            "${VERSION}"
+          printf "  BUILD: %s\n"            "${BUILD}"
 
       - name: Build invoicer
         run: >
@@ -121,13 +131,7 @@ jobs:
           echo ::set-env name=TAG::"${TAG}"
 
           echo ::set-env name=VERSION::"$(echo "${TAG}" | cut -d+ -f1)"
-
-          BUILD="$(echo "+${TAG}" | cut -d+ -f3)"
-          if [[ -z "${BUILD}" ]]; then
-            echo "ERR '+build<N>' must be appended to the git tag"
-            exit 1
-          fi
-          echo ::set-env name=BUILD::"${BUILD}"
+          echo ::set-env name=BUILD::"$(echo "+${TAG}" | cut -d+ -f3)"
 
       - name: Print just set ENV VARs
         run: |
