@@ -2,8 +2,7 @@ name: Build & deploy invoicer on a git tag push
 
 on:
   push:
-    tags:
-      - '*'
+    tags: [ '*' ]
 
 jobs:
   build:
