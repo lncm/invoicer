@@ -1,11 +1,6 @@
-/.idea
 /bin
-users.list
-
-.DS_Store
 
 *.macaroon
-tls.cert
 invoicer.conf
 static/
 /invoicer

@@ -1,8 +1,6 @@
 .DS_Store
 bin/*
-/readonly.macaroon
-/invoice.macaroon
-/tls.cert
+
 /users.list
 /invoicer.conf
 /invoicer.example.conf
