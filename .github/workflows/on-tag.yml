@@ -36,7 +36,7 @@ jobs:
           fi
           echo ::set-env name=TAG::"${TAG}"
 
-      ## Set target ${ARCH}-itecture for Docker Image built in this job
+      ## Set target ${ARCH}-itecture for Docker Image built in this job.  Used in `final` stage as: `FROM ${ARCH}/alpine:…`
       #   fmt:  amd64|arm32v6|arm32v8|arm64v8
       #   NOTE: Replace `arm64` with `arm64v8`
       - name: Set ARCH (env var)
@@ -64,7 +64,7 @@ jobs:
           fi
           echo ::set-env name=BUILD::"${BUILD}"
 
-      - name: Print just set ENV VARs
+      - name: Print ENV VARs set above
         run: |
           printf "Git tag & arch processed:\n"
           printf "   ARCH: %s (from %s)\n"  "${ARCH}" "${{matrix.arch}}"

@@ -14,6 +14,9 @@ ARG VER_ALPINE=3.11
 ARG USER=invoicer
 ARG DIR=/data/
 
+# NOTE: You should only override this if you know what you're doing
+ARG TAGS="osusergo,netgo,static_build"
+
 
 #
 ## The pairs of Docker stages below define Go Environment necessary for cross-compilation on
@@ -63,8 +66,11 @@ ENV GOARCH=arm  GOARM=6
 # This stage builds invoicer in an Alpine environment
 FROM ${ARCH}-alpine AS alpine-builder
 
-ARG ARCH
 ARG VERSION
+ARG TAGS
+
+ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
+ENV BINARY /go/bin/invoicer
 
 RUN apk add --no-cache  musl-dev  file  git  gcc
 
@@ -73,8 +79,8 @@ RUN mkdir -p /go/src/
 COPY ./ /go/src/
 WORKDIR /go/src/
 
-# Print versions of software used for this build
-# NOTE: sha256sum is part of busybox on Alpine
+## Print versions of software used for this build
+#   NOTE: sha256sum is part of busybox on Alpine
 RUN busybox | head -n 1
 RUN file --version
 RUN git --version
@@ -82,18 +88,32 @@ RUN gcc --version
 RUN uname -a
 RUN env && go version && go env
 
-# All `-tags`, ` -buildid=`, and `-trimpath` added to make the output binary reproducible
-##   ctx: https://github.com/golang/go/issues/26492
-RUN export LD="-s -w -buildid= -X main.version=${VERSION} -X main.gitHash=$(git rev-parse HEAD)"; \
-    echo "Building with ldflags: '${LD}'" && \
-    go build -v  -trimpath  -mod=readonly \
-        -ldflags="${LD}"  -tags="osusergo netgo static_build" \
-        -o /go/bin/
+## Build invoicer binary.
+#   The first line gets hash of the last git-commit & second one prints it.
+#   And here's all other flags explained:
+#       `-x` [verbocity++] print all executed commands
+#       `-v` [verbocity++] print names of compiled packages
+#       `-mod=readonly` [reproducibility] do not change versions of used packages no matter what
+#       `-trimpath` [reproducibility] make sure absolute paths are not included anywhere in the binary
+#       `-tags` [reproducibility] tell Go to build a static binary, see more: https://github.com/golang/go/issues/26492
+#       `-ldflags`
+#           `-s` [size--] do not include symbol table and debug info
+#           `-w` [size--] do not include DWARF symbol table
+#           `-buildid` [reproducibility] while this should always be the same in our setup, clear it just-in-case
+#           `-X` [info] is used twice to inject version, and git-hash into the built binary
+#
+#   NOTE: all of this has to happen in a single `RUN`, because it's impossible to set ENV var in Docker to
+#       an output of an expression.
+RUN export GIT_TAG="$(git rev-parse HEAD)"; \
+    echo "Building git tag: ${GIT_TAG}"; \
+    go build  -x  -v  -trimpath  -mod=readonly  -tags="${TAGS}" \
+        -ldflags="${LDFLAGS} -X main.gitHash=${GIT_HASH}" \
+        -o "${BINARY}"
 
 # Print rudimentary info about the built binary
-RUN sha256sum   /go/bin/invoicer
-RUN file -b     /go/bin/invoicer
-RUN du          /go/bin/invoicer
+RUN sha256sum   "${BINARY}"
+RUN file -b     "${BINARY}"
+RUN du          "${BINARY}"
 
 
 
@@ -101,8 +121,11 @@ RUN du          /go/bin/invoicer
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM ${ARCH}-debian AS debian-builder
 
-ARG ARCH
 ARG VERSION
+ARG TAGS
+
+ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
+ENV BINARY /go/bin/invoicer
 
 RUN apt-get update \
     && apt-get -y install  file  git
@@ -119,15 +142,15 @@ RUN git --version
 RUN uname -a
 RUN env && go version && go env
 
-RUN export LD="-s -w -buildid= -X main.version=${VERSION} -X main.gitHash=$(git rev-parse HEAD)"; \
-    echo "Building with ldflags: '${LD}'" && \
-    go build -v  -trimpath  -mod=readonly \
-        -ldflags="${LD}"  -tags="osusergo netgo static_build"\
-        -o /go/bin/
+RUN export GIT_TAG="$(git rev-parse HEAD)"; \
+    echo "Building git tag: ${GIT_TAG}"; \
+    go build  -x  -v  -trimpath  -mod=readonly  -tags="${TAGS}" \
+        -ldflags="${LDFLAGS} -X main.gitHash=${GIT_HASH}" \
+        -o "${BINARY}"
 
-RUN sha256sum   /go/bin/invoicer
-RUN file -b     /go/bin/invoicer
-RUN du          /go/bin/invoicer
+RUN sha256sum   "${BINARY}"
+RUN file -b     "${BINARY}"
+RUN du          "${BINARY}"
 
 
 
