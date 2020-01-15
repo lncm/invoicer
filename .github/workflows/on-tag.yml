@@ -102,7 +102,7 @@ jobs:
       - name: Save image to a .tgz file
         run: |
           mkdir -p image/
-          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${TAG}-${{matrix.arch}}.tgz"
+          docker save "invoicer:${{matrix.arch}}" | gzip > "image/docker-invoicer-${TAG}-${{matrix.arch}}.tgz"
 
       - name: Print sha256sum of produced Docker image
         run: sha256sum image/*
@@ -119,7 +119,8 @@ jobs:
           ID=$(docker create "invoicer:${{matrix.arch}}")
           docker cp  "${ID}:/bin/invoicer"  binary/
           docker rm  "${ID}"
-          gzip -S "-${{matrix.arch}}.gz" binary/invoicer
+
+          gzip -S "-${TAG}-${{matrix.arch}}.gz" binary/invoicer
 
       - name: Print sha256sum of extracted binary
         run: sha256sum binary/*
@@ -130,7 +131,7 @@ jobs:
           name: binaries
           path: binary/
 
-  docker-hub-push:
+  docker-hub:
     name: Tag & deploy to Docker Hub.  Only after successful build.
 
     runs-on: ubuntu-18.04
@@ -180,7 +181,7 @@ jobs:
       - name: Load images locally
         run: ls -d docker-images/* | xargs -I %  docker load -i "%"
 
-      # `invoicer:arm64` -> `lncm/invoicer:v0.6.0-arm64`
+      # `invoicer:arm64` -> `lncm/invoicer:v0.6.0-arm64[+build<N>]`
       - name: Version-tag all images
         run: |
           for arch in $(docker images ${APP} --format "{{.Tag}}"); do
@@ -236,9 +237,10 @@ jobs:
         with:
           name: docker-images
 
-      - name: Print checksums of binaries
+      - name: Print checksums of everything
         run: sha256sum  binaries/*  docker-images/*
 
+      # TODO: change to official way
       - name: Upload binaries to Github Release
         uses: meeDamian/github-release@v1.0.1
         with:
