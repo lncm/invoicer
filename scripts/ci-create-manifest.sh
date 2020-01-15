@@ -3,11 +3,7 @@ set -e
 
 SLUG=$1
 VERSION=$2
-
-SHORT_VERSION=$3
-if [[ -z "${SHORT_VERSION}" ]]; then
-  SHORT_VERSION="${VERSION}"
-fi
+SHORT_VERSION=${3:-${VERSION}}
 
 BASE="${SLUG}:${VERSION}"
 
