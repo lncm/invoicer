@@ -1,5 +1,6 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+
+set -eo pipefail
 
 SLUG=$1
 VERSION=$2
