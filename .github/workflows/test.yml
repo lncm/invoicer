@@ -24,15 +24,26 @@ jobs:
     steps:
       - uses: actions/checkout@v1.0.0
 
+      - name: Setup environment
+        if: matrix.arch != 'amd64'
+        run: |
+          GOARCH="$(echo "${{matrix.arch}}" | grep -oE 'arm(64)?')"
+          echo ::set-env name=GOARCH::"${GOARCH}"
+
+          GOARM="$(echo "${{matrix.arch}}" | grep arm32 | tail -c 2)"
+          echo ::set-env name=GOARM::"${GOARM}"
+
       - name: Build invoicer in Docker
         run: |
-          ARCH=${{matrix.arch}}
-          if [[ "${ARCH}" == "arm64" ]]; then
+          ARCH="${{matrix.arch}}"
+          if [[ "${{matrix.arch}}" == "arm64" ]]; then
             ARCH="arm64v8"
           fi
 
           docker build --no-cache . \
             --build-arg "ARCH=${ARCH}" \
+            --build-arg "GOARCH=${GOARCH}" \
+            --build-arg "GOARM=${GOARM}" \
             --tag       "invoicer:${{matrix.arch}}"
 
       - name: Show built image details

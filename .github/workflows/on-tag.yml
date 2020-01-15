@@ -63,6 +63,15 @@ jobs:
           fi
           echo ::set-env name=BUILD::"${BUILD}"
 
+      - name: Set GOARCH & GOARM (env vars)
+        if: matrix.arch != 'amd64'
+        run: |
+          GOARCH="$(echo "${{matrix.arch}}" | grep -oE 'arm(64)?')"
+          echo ::set-env name=GOARCH::"${GOARCH}"
+
+          GOARM="$(echo "${{matrix.arch}}" | grep arm32 | tail -c 2)"
+          echo ::set-env name=GOARM::"${GOARM}"
+
       - name: Print ENV VARs set above
         run: |
           printf "Git tag & arch processed:\n"
@@ -70,11 +79,15 @@ jobs:
           printf "    TAG: %s\n"            "${TAG}"
           printf "VERSION: %s\n"            "${VERSION}"
           printf "  BUILD: %s\n"            "${BUILD}"
+          printf " GOARCH: %s\n"            "${GOARCH}"
+          printf "  GOARM: %s\n"            "${GOARM}"
 
       - name: Build invoicer
         run: >
           docker build --no-cache .
           --build-arg "ARCH=${ARCH}"
+          --build-arg "GOARCH=${GOARCH}"
+          --build-arg "GOARM=${GOARM}"
           --build-arg "VERSION=${VERSION}"
           --label     arch="${{matrix.arch}}"
           --label     commit="${{github.sha}}"

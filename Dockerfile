@@ -18,57 +18,17 @@ ARG DIR=/data/
 ARG TAGS="osusergo,netgo,static_build"
 
 
-#
-## The pairs of Docker stages below define Go Environment necessary for cross-compilation on
-#   two different base images: Alpine, and Debian.  Later build stages can be started as:
-#
-#   `FROM ${ARCH}-debian`  or
-#   `FROM ${ARCH}-alpine`
-#
-## Stage defining Alpine environment
-FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-base
-ENV GOOS=linux  GCO_ENABLED=0
-
-## Stage defining Debian environment
-FROM golang:${VER_GO}-buster AS debian-base
-ENV GOOS=linux  GCO_ENABLED=0
-
-
-FROM alpine-base AS amd64-alpine
-ENV GOARCH=amd64
-
-FROM debian-base AS amd64-debian
-ENV GOARCH=amd64
-
-
-FROM alpine-base AS arm64v8-alpine
-ENV GOARCH=arm64
-
-FROM debian-base AS arm64v8-debian
-ENV GOARCH=arm64
-
-
-FROM alpine-base AS arm32v7-alpine
-ENV GOARCH=arm  GOARM=7
-
-FROM debian-base AS arm32v7-debian
-ENV GOARCH=arm  GOARM=7
-
-
-FROM alpine-base AS arm32v6-alpine
-ENV GOARCH=arm  GOARM=6
-
-FROM debian-base AS arm32v6-debian
-ENV GOARCH=arm  GOARM=6
-
-
 
 # This stage builds invoicer in an Alpine environment
-FROM ${ARCH}-alpine AS alpine-builder
+FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-builder
 
 ARG VERSION
+ARG GOARCH
+ARG GOARM
 ARG TAGS
 
+ENV GOOS linux
+ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
 
@@ -119,11 +79,15 @@ RUN du          "${BINARY}"
 
 # This stage builds invoicer in a Debian environment
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
-FROM ${ARCH}-debian AS debian-builder
+FROM golang:${VER_GO}-buster AS debian-builder
 
 ARG VERSION
+ARG GOARCH
+ARG GOARM
 ARG TAGS
 
+ENV GOOS linux
+ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
 
