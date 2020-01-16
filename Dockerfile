@@ -27,7 +27,8 @@ ARG GOARCH
 ARG GOARM
 ARG TAGS
 
-ENV GOOS linux
+# Only set GOOS if GOARCH is set
+ENV GOOS ${GOARCH:+linux}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
@@ -86,7 +87,7 @@ ARG GOARCH
 ARG GOARM
 ARG TAGS
 
-ENV GOOS linux
+ENV GOOS ${GOARCH:+linux}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
