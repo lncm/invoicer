@@ -18,14 +18,20 @@ ARG DIR=/data/
 ARG TAGS="osusergo,netgo,static_build"
 
 
-
-# This stage builds invoicer in an Alpine environment
+#
+## This stage builds invoicer in an Alpine environment
+#
 FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-builder
 
+# Provided by Docker by default
 ARG TARGETVARIANT
-ARG VERSION
+
+# These two should only be set for cross-compilation
 ARG GOARCH
 ARG GOARM
+
+# Capture ARGs defined globally
+ARG VERSION
 ARG TAGS
 
 # Only set GOOS if GOARCH is set
@@ -81,15 +87,16 @@ RUN file -b     "${BINARY}"
 RUN du          "${BINARY}"
 
 
-
-# This stage builds invoicer in a Debian environment
+#
+## This stage builds invoicer in a Debian environment
+#
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM golang:${VER_GO}-buster AS debian-builder
 
 ARG TARGETVARIANT
-ARG VERSION
 ARG GOARCH
 ARG GOARM
+ARG VERSION
 ARG TAGS
 
 ENV GOOS ${GOARCH:+linux}
@@ -125,7 +132,9 @@ RUN du          "${BINARY}"
 
 
 
-# This stage compares previously built binaries, and only proceeds if they are identical
+#
+## This stage compares previously built binaries, and only proceeds if they are identical
+#
 FROM alpine:${VER_ALPINE} AS cross-check
 
 # Install utilities used later
@@ -158,8 +167,11 @@ RUN file -b   /bin/invoicer
 RUN du        /bin/invoicer
 
 
-# This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
+
+#
+## This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
 #   which would break cross-compiled images.
+#
 FROM alpine:${VER_ALPINE} AS perms
 
 ARG USER
@@ -176,6 +188,7 @@ RUN adduser --disabled-password \
 #
 ## This is the final image that gets shipped to Docker Hub
 #
+# NOTE: `${ARCH:+${ARCH}/}` - if ARCH is set, append `/` to it, leave it empty otherwise
 FROM ${ARCH:+${ARCH}/}alpine:${VER_ALPINE} AS final
 
 ARG USER
