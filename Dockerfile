@@ -1,5 +1,5 @@
-# This Dockerfile builds invoicer twice: once on Alpine, once on Debian.  If the binaries are the same,
-#   one is compressed and moved to the `final` stage.
+# This Dockerfile builds invoicer twice: once on Alpine, once on Debian.
+# If the binaries are the same, one is compressed, and copied to the `final` stage.
 
 # invoicer version to be build
 ARG VERSION=v0.7.5
@@ -19,7 +19,7 @@ ARG TAGS="osusergo,netgo,static_build"
 
 
 #
-## This stage builds invoicer in an Alpine environment
+## This stage builds `invoicer` in an Alpine environment
 #
 FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-builder
 
@@ -48,6 +48,7 @@ RUN apk add --no-cache  musl-dev  file  git  gcc
 RUN mkdir -p /go/src/
 
 COPY ./ /go/src/
+
 WORKDIR /go/src/
 
 ## Print versions of software used for this build
@@ -75,8 +76,8 @@ RUN env && go version && go env
 #
 #   NOTE: all of this has to happen in a single `RUN`, because it's impossible to set ENV var in Docker to
 #       an output of an expression.
-RUN export GIT_TAG="$(git rev-parse HEAD)"; \
-    echo "Building git tag: ${GIT_TAG}"; \
+RUN export GIT_HASH="$(git rev-parse HEAD)"; \
+    echo "Building git tag: ${GIT_HASH}"; \
     go build  -x  -v  -trimpath  -mod=readonly  -tags="${TAGS}" \
         -ldflags="${LDFLAGS} -X main.gitHash=${GIT_HASH}" \
         -o "${BINARY}"
@@ -88,7 +89,7 @@ RUN du          "${BINARY}"
 
 
 #
-## This stage builds invoicer in a Debian environment
+## This stage builds `invoicer` in a Debian environment
 #
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM golang:${VER_GO}-buster AS debian-builder
@@ -120,8 +121,8 @@ RUN git --version
 RUN uname -a
 RUN env && go version && go env
 
-RUN export GIT_TAG="$(git rev-parse HEAD)"; \
-    echo "Building git tag: ${GIT_TAG}"; \
+RUN export GIT_HASH="$(git rev-parse HEAD)"; \
+    echo "Building git hash: ${GIT_HASH}"; \
     go build  -x  -v  -trimpath  -mod=readonly  -tags="${TAGS}" \
         -ldflags="${LDFLAGS} -X main.gitHash=${GIT_HASH}" \
         -o "${BINARY}"
@@ -144,8 +145,8 @@ RUN apk add --no-cache  file  upx
 RUN mkdir -p  /bin  /alpine  /debian
 
 # Copy binaries from prior builds
-COPY  --from=alpine-builder  /go/bin/invoicer  /alpine/
-COPY  --from=debian-builder  /go/bin/invoicer  /debian/
+COPY  --from=alpine-builder /go/bin/invoicer  /alpine/
+COPY  --from=debian-builder /go/bin/invoicer  /debian/
 
 # Print binary info PRIOR comparison & compression
 RUN sha256sum   /debian/invoicer  /alpine/invoicer
@@ -155,7 +156,7 @@ RUN du          /debian/invoicer  /alpine/invoicer
 # Compare built binaries
 RUN diff -q  /alpine/invoicer  /debian/invoicer
 
-# If identical, proceed to move one binary into /bin/
+# If identical, proceed to move one binary into `/bin/`
 RUN mv /alpine/invoicer /bin/
 
 # Compress, and be verbose about it
