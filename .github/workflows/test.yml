@@ -120,5 +120,5 @@ jobs:
             docker run --rm --entrypoint=cat        "${APP}:${tag}" /etc/os-release
             docker run --rm --entrypoint=sha256sum  "${APP}:${tag}" /bin/${APP}
 
-            docker run --rm --entrypoint=sh -u=root "${APP}:${tag}" -c 'apk add --no-cache file && file /bin/${APP}'
+            docker run --rm --entrypoint=sh -u=root "${APP}:${tag}" -c "apk add --no-cache file && file /bin/${APP}"
           done
