@@ -79,3 +79,46 @@ jobs:
         with:
           name: binaries
           path: binary/
+
+  test:
+    name: Check sanity of images
+    runs-on: ubuntu-18.04
+    needs: build
+
+    env:
+      QEMU_VERSION: v4.2.0
+      APP: invoicer
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: docker-images
+
+      - name: Print sha256sum of all Docker images
+        run: sha256sum docker-images/*
+
+      - name: Register self-compiled qemu
+        run: docker run --rm --privileged "meedamian/simple-qemu:${QEMU_VERSION}" -p yes
+
+      - name: Load all images locally
+        run: ls -d docker-images/* | xargs -I %  docker load -i "%"
+
+      - name: List all tagged images
+        run: docker images "${APP}"
+
+      - name: Run sanity checks
+        run: |
+          for tag in $(docker images "${APP}" --format "{{.Tag}}"); do
+            echo
+            echo "~~~~~ ${APP}:${tag} ~~~~~"
+            docker inspect "${APP}:${tag}" | jq '.'
+
+            docker run --rm                         "${APP}:${tag}" --version
+
+            docker run --rm --entrypoint=uname      "${APP}:${tag}" -a
+            docker run --rm --entrypoint=cat        "${APP}:${tag}" /etc/os-release
+            docker run --rm --entrypoint=sha256sum  "${APP}:${tag}" /bin/${APP}
+
+            docker run --rm --entrypoint=sh         "${APP}:${tag}" -c 'apk add --no-cache file && file /bin/${APP}'
+          done
