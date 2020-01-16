@@ -29,6 +29,9 @@ ARG TAGS
 
 # Only set GOOS if GOARCH is set
 ENV GOOS ${GOARCH:+linux}
+
+# If GOARM is not set, but TARGETVARIANT is set - hardcode GOARM to 7
+ENV GOARM ${GOARM:-${TARGETVARIANT:+7}}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
@@ -88,6 +91,7 @@ ARG GOARM
 ARG TAGS
 
 ENV GOOS ${GOARCH:+linux}
+ENV GOARM ${GOARM:-${TARGETVARIANT:+7}}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
