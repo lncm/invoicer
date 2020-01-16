@@ -2,7 +2,7 @@
 # If the binaries are the same, one is compressed, and copied to the `final` stage.
 
 # invoicer version to be build
-ARG VERSION=v0.7.5
+ARG VERSION=v0.7.6
 
 # Target CPU archtecture of built Invoicer binary
 ARG ARCH
