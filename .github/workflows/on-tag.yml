@@ -1,4 +1,4 @@
-name: Build & deploy invoicer on a git tag push
+name: Build & deploy on git tag push
 
 on:
   push:
@@ -9,9 +9,6 @@ jobs:
     name: Build invoicer
     runs-on: ubuntu-18.04
 
-    env:
-      DOCKER_BUILDKIT: 1
-
     strategy:
       matrix:
         arch:
@@ -19,6 +16,10 @@ jobs:
           - arm64
           - arm32v6
           - arm32v7
+
+    env:
+      DOCKER_BUILDKIT: 1
+      APP: invoicer
 
     steps:
       - uses: actions/checkout@v1.0.0
@@ -94,15 +95,15 @@ jobs:
           --label     git-tag="${TAG}"
           --label     guilty="${{github.actor}}"
           --label     repo-url="${{github.repositoryUrl}}"
-          --tag       "invoicer:${{matrix.arch}}"
+          --tag       "${APP}:${{matrix.arch}}"
 
       - name: Show built image details
-        run: docker images invoicer
+        run: docker images "${APP}"
 
       - name: Save image to a .tgz file
         run: |
           mkdir -p image/
-          docker save "invoicer:${{matrix.arch}}" | gzip > "image/docker-invoicer-${TAG}-${{matrix.arch}}.tgz"
+          docker save "${APP}:${{matrix.arch}}" | gzip > "image/docker-${APP}-${TAG}-${{matrix.arch}}.tgz"
 
       - name: Print sha256sum of produced Docker image
         run: sha256sum image/*
@@ -116,11 +117,11 @@ jobs:
       - name: Extract binary from the built image
         run: |
           mkdir -p binary/
-          ID=$(docker create "invoicer:${{matrix.arch}}")
-          docker cp  "${ID}:/bin/invoicer"  binary/
+          ID=$(docker create "${APP}:${{matrix.arch}}")
+          docker cp  "${ID}:/bin/${APP}"  binary/
           docker rm  "${ID}"
 
-          gzip -S "-${TAG}-${{matrix.arch}}.gz" binary/invoicer
+          gzip -S "-${TAG}-${{matrix.arch}}.gz" binary/${APP}
 
       - name: Print sha256sum of extracted binary
         run: sha256sum binary/*
@@ -132,7 +133,7 @@ jobs:
           path: binary/
 
   docker-hub:
-    name: Tag & deploy to Docker Hub.  Only after successful build.
+    name: Tag & deploy to Docker Hub.  Only after successful build
 
     runs-on: ubuntu-18.04
     needs: build
