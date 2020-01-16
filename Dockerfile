@@ -4,8 +4,8 @@
 # invoicer version to be build
 ARG VERSION=v0.7.4
 
-# Target CPU archtecture of built IPFS binary
-ARG ARCH=amd64
+# Target CPU archtecture of built Invoicer binary
+ARG ARCH
 
 # Define default versions so that they don't have to be repreated throughout the file
 ARG VER_GO=1.13
@@ -19,56 +19,27 @@ ARG TAGS="osusergo,netgo,static_build"
 
 
 #
-## The pairs of Docker stages below define Go Environment necessary for cross-compilation on
-#   two different base images: Alpine, and Debian.  Later build stages can be started as:
+## This stage builds invoicer in an Alpine environment
 #
-#   `FROM ${ARCH}-debian`  or
-#   `FROM ${ARCH}-alpine`
-#
-## Stage defining Alpine environment
-FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-base
-ENV GOOS=linux  GCO_ENABLED=0
+FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-builder
 
-## Stage defining Debian environment
-FROM golang:${VER_GO}-buster AS debian-base
-ENV GOOS=linux  GCO_ENABLED=0
+# Provided by Docker by default
+ARG TARGETVARIANT
 
+# These two should only be set for cross-compilation
+ARG GOARCH
+ARG GOARM
 
-FROM alpine-base AS amd64-alpine
-ENV GOARCH=amd64
-
-FROM debian-base AS amd64-debian
-ENV GOARCH=amd64
-
-
-FROM alpine-base AS arm64v8-alpine
-ENV GOARCH=arm64
-
-FROM debian-base AS arm64v8-debian
-ENV GOARCH=arm64
-
-
-FROM alpine-base AS arm32v7-alpine
-ENV GOARCH=arm  GOARM=7
-
-FROM debian-base AS arm32v7-debian
-ENV GOARCH=arm  GOARM=7
-
-
-FROM alpine-base AS arm32v6-alpine
-ENV GOARCH=arm  GOARM=6
-
-FROM debian-base AS arm32v6-debian
-ENV GOARCH=arm  GOARM=6
-
-
-
-# This stage builds invoicer in an Alpine environment
-FROM ${ARCH}-alpine AS alpine-builder
-
+# Capture ARGs defined globally
 ARG VERSION
 ARG TAGS
 
+# Only set GOOS if GOARCH is set
+ENV GOOS ${GOARCH:+linux}
+
+# If GOARM is not set, but TARGETVARIANT is set - hardcode GOARM to 6
+ENV GOARM ${GOARM:-${TARGETVARIANT:+6}}
+ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
 
@@ -116,14 +87,21 @@ RUN file -b     "${BINARY}"
 RUN du          "${BINARY}"
 
 
-
-# This stage builds invoicer in a Debian environment
+#
+## This stage builds invoicer in a Debian environment
+#
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
-FROM ${ARCH}-debian AS debian-builder
+FROM golang:${VER_GO}-buster AS debian-builder
 
+ARG TARGETVARIANT
+ARG GOARCH
+ARG GOARM
 ARG VERSION
 ARG TAGS
 
+ENV GOOS ${GOARCH:+linux}
+ENV GOARM ${GOARM:-${TARGETVARIANT:+6}}
+ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
 
@@ -154,7 +132,9 @@ RUN du          "${BINARY}"
 
 
 
-# This stage compares previously built binaries, and only proceeds if they are identical
+#
+## This stage compares previously built binaries, and only proceeds if they are identical
+#
 FROM alpine:${VER_ALPINE} AS cross-check
 
 # Install utilities used later
@@ -187,8 +167,11 @@ RUN file -b   /bin/invoicer
 RUN du        /bin/invoicer
 
 
-# This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
+
+#
+## This stage is used to generate /etc/{group,passwd,shadow} files & avoid RUN-ing commands in the `final` layer,
 #   which would break cross-compiled images.
+#
 FROM alpine:${VER_ALPINE} AS perms
 
 ARG USER
@@ -205,7 +188,8 @@ RUN adduser --disabled-password \
 #
 ## This is the final image that gets shipped to Docker Hub
 #
-FROM ${ARCH}/alpine:${VER_ALPINE} AS final
+# NOTE: `${ARCH:+${ARCH}/}` - if ARCH is set, append `/` to it, leave it empty otherwise
+FROM ${ARCH:+${ARCH}/}alpine:${VER_ALPINE} AS final
 
 ARG USER
 ARG DIR
