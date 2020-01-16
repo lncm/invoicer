@@ -9,9 +9,6 @@ jobs:
     name: Build invoicer
     runs-on: ubuntu-18.04
 
-    env:
-      DOCKER_BUILDKIT: 1
-
     strategy:
       fail-fast: false
       matrix:
@@ -20,6 +17,10 @@ jobs:
           - arm64
           - arm32v6
           - arm32v7
+
+     env:
+      DOCKER_BUILDKIT: 1
+      APP: invoicer
 
     steps:
       - uses: actions/checkout@v1.0.0
@@ -33,7 +34,7 @@ jobs:
           GOARM="$(echo "${{matrix.arch}}" | grep arm32 | tail -c 2)"
           echo ::set-env name=GOARM::"${GOARM}"
 
-      - name: Build invoicer in Docker
+      - name: Build invoicer:${{matrix.arch}}
         run: |
           ARCH="${{matrix.arch}}"
           if [[ "${{matrix.arch}}" == "arm64" ]]; then
@@ -44,18 +45,18 @@ jobs:
             --build-arg "ARCH=${ARCH}" \
             --build-arg "GOARCH=${GOARCH}" \
             --build-arg "GOARM=${GOARM}" \
-            --tag       "invoicer:${{matrix.arch}}"
+            --tag       "${APP}:${{matrix.arch}}"
 
       - name: Show built image details
-        run: docker images invoicer
+        run: docker images "${APP}"
 
       - name: Save image to a .tgz file
         run: |
           mkdir -p image/
-          docker save "invoicer:${{matrix.arch}}" | gzip > "image/invoicer-${{matrix.arch}}.tgz"
+          docker save "${APP}:${{matrix.arch}}" | gzip > "image/${APP}-${{matrix.arch}}.tgz"
 
       - name: Print sha256sum of produced Docker image
-        run: sha256sum "image/invoicer-${{matrix.arch}}.tgz"
+        run: sha256sum "image/${APP}-${{matrix.arch}}.tgz"
 
       - name: Add Docker image as build artifact
         uses: actions/upload-artifact@v1.0.0
@@ -66,10 +67,10 @@ jobs:
       - name: Extract binary from the built image
         run: |
           mkdir -p binary/
-          ID=$(docker create "invoicer:${{matrix.arch}}")
-          docker cp  "${ID}:/bin/invoicer"  binary/
+          ID=$(docker create "${APP}:${{matrix.arch}}")
+          docker cp  "${ID}:/bin/${APP}"  binary/
           docker rm  "${ID}"
-          gzip -S "-${{matrix.arch}}.gz" binary/invoicer
+          gzip -S "-${{matrix.arch}}.gz" binary/${APP}
 
       - name: Print sha256sum of extracted binary
         run: sha256sum binary/*
