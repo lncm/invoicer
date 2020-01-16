@@ -22,6 +22,7 @@ ARG TAGS="osusergo,netgo,static_build"
 # This stage builds invoicer in an Alpine environment
 FROM golang:${VER_GO}-alpine${VER_ALPINE} AS alpine-builder
 
+ARG TARGETVARIANT
 ARG VERSION
 ARG GOARCH
 ARG GOARM
@@ -30,8 +31,8 @@ ARG TAGS
 # Only set GOOS if GOARCH is set
 ENV GOOS ${GOARCH:+linux}
 
-# If GOARM is not set, but TARGETVARIANT is set - hardcode GOARM to 7
-ENV GOARM ${GOARM:-${TARGETVARIANT:+7}}
+# If GOARM is not set, but TARGETVARIANT is set - hardcode GOARM to 6
+ENV GOARM ${GOARM:-${TARGETVARIANT:+6}}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
@@ -85,13 +86,14 @@ RUN du          "${BINARY}"
 # NOTE: Comments that would be identical to Alpine stage skipped for brevity
 FROM golang:${VER_GO}-buster AS debian-builder
 
+ARG TARGETVARIANT
 ARG VERSION
 ARG GOARCH
 ARG GOARM
 ARG TAGS
 
 ENV GOOS ${GOARCH:+linux}
-ENV GOARM ${GOARM:-${TARGETVARIANT:+7}}
+ENV GOARM ${GOARM:-${TARGETVARIANT:+6}}
 ENV GCO_ENABLED 0
 ENV LDFLAGS "-s -w -buildid= -X main.version=${VERSION}"
 ENV BINARY /go/bin/invoicer
