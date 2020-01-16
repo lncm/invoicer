@@ -2,7 +2,7 @@
 #   one is compressed and moved to the `final` stage.
 
 # invoicer version to be build
-ARG VERSION=v0.7.4
+ARG VERSION=v0.7.5
 
 # Target CPU archtecture of built Invoicer binary
 ARG ARCH
