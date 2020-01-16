@@ -18,7 +18,7 @@ jobs:
           - arm32v6
           - arm32v7
 
-     env:
+    env:
       DOCKER_BUILDKIT: 1
       APP: invoicer
 
