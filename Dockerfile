@@ -4,8 +4,8 @@
 # invoicer version to be build
 ARG VERSION=v0.7.4
 
-# Target CPU archtecture of built IPFS binary
-ARG ARCH=amd64
+# Target CPU archtecture of built Invoicer binary
+ARG ARCH
 
 # Define default versions so that they don't have to be repreated throughout the file
 ARG VER_GO=1.13
@@ -169,7 +169,7 @@ RUN adduser --disabled-password \
 #
 ## This is the final image that gets shipped to Docker Hub
 #
-FROM ${ARCH}/alpine:${VER_ALPINE} AS final
+FROM ${ARCH:+${ARCH}/}alpine:${VER_ALPINE} AS final
 
 ARG USER
 ARG DIR
