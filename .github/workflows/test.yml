@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p binary/
           ID=$(docker create "${APP}:${{matrix.arch}}")
-          docker cp  "${ID}:/bin/${APP}"  binary/
+          docker cp  "${ID}:/usr/local/bin/${APP}"  binary/
           docker rm  "${ID}"
           gzip -S "-${{matrix.arch}}.gz" binary/${APP}
 
@@ -119,7 +119,7 @@ jobs:
 
             docker run --rm --entrypoint=uname      "${APP}:${tag}" -a
             docker run --rm --entrypoint=cat        "${APP}:${tag}" /etc/os-release
-            docker run --rm --entrypoint=sha256sum  "${APP}:${tag}" /bin/${APP}
+            docker run --rm --entrypoint=sha256sum  "${APP}:${tag}" /usr/local/bin/${APP}
 
-            docker run --rm --entrypoint=sh -u=root "${APP}:${tag}" -c "apk add --no-cache file && file /bin/${APP}"
+            docker run --rm --entrypoint=sh -u=root "${APP}:${tag}" -c "apk add --no-cache file && file /usr/local/bin/${APP}"
           done

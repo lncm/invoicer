@@ -2,7 +2,7 @@
 # If the binaries are the same, one is compressed, and copied to the `final` stage.
 
 # invoicer version to be build
-ARG VERSION=v0.7.7
+ARG VERSION=v0.8.0
 
 # Target CPU archtecture of built Invoicer binary
 ARG ARCH
@@ -204,16 +204,15 @@ COPY  --from=perms  /etc/passwd  /etc/
 COPY  --from=perms  /etc/shadow  /etc/
 
 # Copy the binary from the cross-check stage
-COPY  --from=cross-check  /bin/invoicer  /bin/
+COPY  --from=cross-check  /bin/invoicer  /usr/local/bin/
+
+USER ${USER}
 
 # Expose the volume to communicate config, log, etc through (default: /data/)
 VOLUME ${DIR}
 
 # Expose port Invoicer listens on
 EXPOSE 8080
-
-USER ${USER}
-WORKDIR ${DIR}
 
 # Specify the start command and entrypoint as the invoicer daemon.
 ENTRYPOINT ["invoicer"]
