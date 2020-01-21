@@ -184,6 +184,10 @@ RUN adduser --disabled-password \
             --gecos "" \
             ${USER}
 
+# Needed to prevent `VOLUME ${DIR}` creating it with `root` as owner
+USER ${USER}
+RUN mkdir -p ${DIR}
+
 
 
 #
@@ -200,6 +204,9 @@ LABEL maintainer="Damian Mee (@meeDamian)"
 
 # Copy only the relevant parts from the `perms` image
 COPY  --from=perms /etc/group /etc/passwd /etc/shadow  /etc/
+
+# From `perms`, copy *the contents* of `${DIR}` (ie. nothing), and set correct owner for destination `${DIR}`
+COPY  --from=perms --chown=${USER}:${USER} ${DIR}  ${DIR}
 
 # Copy the binary from the cross-check stage
 COPY  --from=cross-check  /bin/invoicer  /usr/local/bin/
