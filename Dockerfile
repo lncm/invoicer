@@ -199,9 +199,7 @@ ARG DIR
 LABEL maintainer="Damian Mee (@meeDamian)"
 
 # Copy only the relevant parts from the `perms` image
-COPY  --from=perms  /etc/group   /etc/
-COPY  --from=perms  /etc/passwd  /etc/
-COPY  --from=perms  /etc/shadow  /etc/
+COPY  --from=perms /etc/group /etc/passwd /etc/shadow  /etc/
 
 # Copy the binary from the cross-check stage
 COPY  --from=cross-check  /bin/invoicer  /usr/local/bin/
