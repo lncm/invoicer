@@ -158,6 +158,7 @@ jobs:
       - name: Print just set ENV VARs
         run: |
           printf "Just set env vars:\n"
+          printf "   USER: %s\n"  "${DOCKER_USER}"
           printf "    TAG: %s\n"  "${TAG}"
           printf "   SLUG: %s\n"  "${SLUG}"
           printf "    APP: %s\n"  "${APP}"
