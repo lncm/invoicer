@@ -11,11 +11,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/pelletier/go-toml"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/go-playground/validator/v10"
 
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/common"
