@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/common"
