@@ -44,8 +44,7 @@ type (
 const DefaultInvoicerPort = 8080
 
 var (
-	version,
-	gitHash string
+	version, gitHash string
 
 	lnClient  LightningClient
 	btcClient BitcoinClient
