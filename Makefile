@@ -64,7 +64,7 @@ $(patsubst %, ln/lnd/google/api/%.proto, annotations http): ln/lnd/%: ln/lnd/goo
 clean-proto:
 	rm -rf ln/lnd/
 
-proto:   clean-proto  ln/lnd/rpc.proto  ln/lnd/google/api/annotations.proto  ln/lnd/google/api/http.proto
+proto:  clean-proto  ln/lnd/rpc.proto  ln/lnd/google/api/annotations.proto  ln/lnd/google/api/http.proto
 	go generate ./ln/...
 
 
