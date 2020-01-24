@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -14,12 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pelletier/go-toml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/validator.v9"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"gopkg.in/go-playground/validator.v9"
 
 	"github.com/lncm/invoicer/bitcoind"
 	"github.com/lncm/invoicer/common"
-	"github.com/lncm/invoicer/lnd"
+	"github.com/lncm/invoicer/ln"
 )
 
 type (
@@ -92,21 +92,10 @@ func init() {
 		panic(fmt.Errorf("unable to process %s:\n\t%w", *configFilePath, err))
 	}
 
-	// Use lnd when no client is specified
-	if conf.LnClient == "" {
-		conf.LnClient = lnd.ClientName
-	}
-
 	// init specified LN client
-	switch strings.ToLower(conf.LnClient) {
-	case lnd.ClientName:
-		lnClient = lnd.New(conf.Lnd)
-
-	// case clightning.ClientName:
-	// lnClient = cLightning.New()
-
-	default:
-		panic(fmt.Errorf("invalid ln-client specified: %s", conf.LnClient))
+	lnClient, err = ln.Start(conf.Lnd)
+	if err != nil {
+		panic(err)
 	}
 
 	// Init BTC client for monitoring on-chain payments

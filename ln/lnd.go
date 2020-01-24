@@ -1,4 +1,6 @@
-package lnd
+//go:generate protoc --go_out=plugins=grpc,paths=source_relative:./lnd/  -Ilnd/  lnd/rpc.proto
+
+package ln
 
 import (
 	"context"
@@ -8,7 +10,6 @@ import (
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/macaroons"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -18,16 +19,14 @@ import (
 )
 
 const (
-	ClientName = "lnd"
-
-	DefaultHostname  = "localhost"
-	DefaultPort      = 10009
-	DefaultTLS       = "~/.lncm/tls.cert"
-	DefaultInvoice   = "~/.lncm/invoice.macaroon"
-	DefaultReadOnly  = "~/.lncm/readonly.macaroon"
-	DefaultKillCount = 4
+	DefaultHostname = "localhost"
+	DefaultPort     = 10009
+	DefaultTLS      = "~/.lncm/tls.cert"
+	DefaultInvoice  = "~/.lncm/invoice.macaroon"
+	DefaultReadOnly = "~/.lncm/readonly.macaroon"
 )
 
+// LndConfig config
 type Lnd struct {
 	// Used to generate invoices and monitor their status
 	invoiceClient lnrpc.LightningClient
@@ -147,11 +146,7 @@ func (lnd Lnd) History(ctx context.Context) (invoices common.Invoices, err error
 	return
 }
 
-func (lnd Lnd) checkConnectionStatus(killCount int) {
-	if killCount == 0 {
-		return
-	}
-
+func (lnd Lnd) checkConnectionStatus() {
 	failures := 0
 
 	for {
@@ -169,10 +164,6 @@ func (lnd Lnd) checkConnectionStatus(killCount int) {
 
 		cancel()
 
-		if failures >= killCount {
-			log.WithField("count", failures).WithField("final", true).Panic("lnd unreachable")
-		}
-
 		if failures > 0 {
 			log.WithField("count", failures).Printf("lnd unreachable")
 		}
@@ -181,7 +172,7 @@ func (lnd Lnd) checkConnectionStatus(killCount int) {
 	}
 }
 
-func getClient(creds credentials.TransportCredentials, fullHostname, file string) lnrpc.LightningClient {
+func getClient(transportCredentials credentials.TransportCredentials, fullHostname, file string) lnrpc.LightningClient {
 	macaroonBytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		panic(fmt.Sprintln("Cannot read macaroon file", err))
@@ -196,9 +187,9 @@ func getClient(creds credentials.TransportCredentials, fullHostname, file string
 	defer cancel()
 
 	connection, err := grpc.DialContext(ctx, fullHostname, []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
 		grpc.WithBlock(),
-		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
+		grpc.WithTransportCredentials(transportCredentials),
+		grpc.WithPerRPCCredentials(newCreds(macaroonBytes)),
 	}...)
 	if err != nil {
 		panic(fmt.Errorf("unable to connect to %s: %w", fullHostname, err))
@@ -207,7 +198,7 @@ func getClient(creds credentials.TransportCredentials, fullHostname, file string
 	return lnrpc.NewLightningClient(connection)
 }
 
-func New(conf common.Lnd) (lnd Lnd) {
+func startClient(conf common.LndConfig) (c Lnd, err error) {
 	if conf.Host == "" {
 		conf.Host = DefaultHostname
 	}
@@ -231,32 +222,41 @@ func New(conf common.Lnd) (lnd Lnd) {
 	}
 	conf.Macaroons.ReadOnly = common.CleanAndExpandPath(conf.Macaroons.ReadOnly)
 
-	creds, err := credentials.NewClientTLSFromFile(conf.TLS, conf.Host)
+	transportCredentials, err := credentials.NewClientTLSFromFile(conf.TLS, conf.Host)
 	if err != nil {
-		panic(err)
+		return c, err
 	}
 
 	hostname := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
-	invoiceClient := getClient(creds, hostname, conf.Macaroons.Invoice)
+	readOnlyClient := getClient(transportCredentials, hostname, conf.Macaroons.ReadOnly)
+	invoiceClient := getClient(transportCredentials, hostname, conf.Macaroons.Invoice)
+
 	notifier, err := NewNotifier(invoiceClient)
 	if err != nil {
-		panic(err)
+		return c, err
 	}
 
-	lnd = Lnd{
+	c = Lnd{
 		invoiceClient:  invoiceClient,
-		readOnlyClient: getClient(creds, hostname, conf.Macaroons.ReadOnly),
+		readOnlyClient: readOnlyClient,
 		notifier:       notifier,
 	}
 
-	if conf.KillCount == nil {
-		// `hah` assignment is silly, but necessary…
-		hah := DefaultKillCount
-		conf.KillCount = &hah
-	}
+	go c.checkConnectionStatus()
 
-	go lnd.checkConnectionStatus(*conf.KillCount)
+	return c, nil
+}
 
-	return lnd
+type rpcCreds map[string]string
+
+func (m rpcCreds) RequireTransportSecurity() bool { return true }
+func (m rpcCreds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+	return m, nil
+}
+
+func newCreds(bytes []byte) rpcCreds {
+	creds := make(map[string]string)
+	creds["macaroon"] = hex.EncodeToString(bytes)
+	return creds
 }

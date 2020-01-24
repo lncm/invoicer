@@ -128,7 +128,7 @@ func (b Bitcoind) sendRequest(method string, params ...interface{}) (response []
 	}
 
 	if resBody.Error != nil {
-		return nil, fmt.Errorf("bitcoind error (%d): %w", resBody.Error.Code, resBody.Error.Message)
+		return nil, fmt.Errorf("bitcoind error (%d): %s", resBody.Error.Code, resBody.Error.Message)
 	}
 
 	return resBody.Result, nil

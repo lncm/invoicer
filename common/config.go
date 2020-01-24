@@ -29,7 +29,7 @@ type (
 		Bitcoind Bitcoind `toml:"bitcoind"`
 
 		// [lnd] section in the `--config` file that defines Lnd's setup
-		Lnd Lnd `toml:"lnd"`
+		Lnd LndConfig `toml:"lnd"`
 
 		// An optional list of user:password pairs that will get granted access to the /history endpoint
 		Users map[string]string `toml:"users"`
@@ -44,8 +44,15 @@ type (
 		Pass string `toml:"pass"`
 	}
 
-	// Lnd config
-	Lnd struct {
+	Macaroons struct {
+		// This is needed to generate new invoices
+		Invoice string `toml:"invoice"`
+
+		// This is needed to check status of invoices (and if enabled access `/history` endpoint)
+		ReadOnly string `toml:"readonly"`
+	}
+
+	LndConfig struct {
 		Host string `toml:"host"`
 		Port int64  `toml:"port"`
 
@@ -53,16 +60,7 @@ type (
 		TLS string `toml:"tls"`
 
 		// Macaroons are usually located in `~/.lnd/data/chain/bitcoin/mainnet/`
-		Macaroons struct {
-			// This is needed to generate new invoices
-			Invoice string `toml:"invoice"`
-
-			// This is needed to check status of invoices (and if enabled access `/history` endpoint)
-			ReadOnly string `toml:"readonly"`
-		} `toml:"macaroon"`
-
-		// How many times try to talk to LND before committing suicide
-		KillCount *int `toml:"kill-count"`
+		Macaroons Macaroons `toml:"macaroon"`
 	}
 )
 
