@@ -9,13 +9,13 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
 
 	"github.com/lncm/invoicer/common"
+	lnrpc "github.com/lncm/invoicer/ln/lnd"
 )
 
 const (

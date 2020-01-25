@@ -5,8 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"
+
+	lnrpc "github.com/lncm/invoicer/ln/lnd"
 )
 
 type (
