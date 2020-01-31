@@ -97,7 +97,6 @@ docker run -it --rm \
 API
 ---
 
-
 ## `GET /`
 
 If `static-dir =` passed, serves `index.html` located within there. Otherwise 404. 
