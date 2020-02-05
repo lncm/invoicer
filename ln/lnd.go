@@ -1,5 +1,3 @@
-//go:generate protoc --go_out=plugins=grpc,paths=source_relative:./lnd/  -Ilnd/  lnd/rpc.proto
-
 package ln
 
 import (
@@ -14,8 +12,9 @@ import (
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
 
+	"github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
+
 	"github.com/lncm/invoicer/common"
-	lnrpc "github.com/lncm/invoicer/ln/lnd"
 )
 
 const (
@@ -46,7 +45,6 @@ func (lnd Lnd) NewInvoice(ctx context.Context, amount int64, desc string) (invoi
 	if err != nil {
 		return
 	}
-
 	return inv.GetPaymentRequest(), hex.EncodeToString(inv.GetRHash()), nil
 }
 

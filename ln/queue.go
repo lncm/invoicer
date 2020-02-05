@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	lnrpc "github.com/lncm/invoicer/ln/lnd"
+	"github.com/lncm/lnd-rpc/v0.9.0/lnrpc"
 )
 
 type (
