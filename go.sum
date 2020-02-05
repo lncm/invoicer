@@ -66,6 +66,7 @@ github.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
 github.com/lncm/lnd-rpc v1.0.0 h1:x/wJbyBUS9iBEJCyoTHpWOswfVmmsQdcQSFeuqugxgE=
 github.com/lncm/lnd-rpc v1.0.0/go.mod h1:2limPwdl7m++0/c7KRlX7UJQJcMCO70YJA1IbWK0q5g=
+github.com/lncm/lnd-rpc v1.0.1/go.mod h1:H29WE7a1ujYMsSJJLtceLavFNdbwqEUsyhXKVGoufj4=
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mattn/go-isatty v0.0.7/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.9 h1:d5US/mDsogSGW37IV293h//ZFaeajb69h+EHFsv2xGg=
