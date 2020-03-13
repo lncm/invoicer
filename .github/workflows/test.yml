@@ -1,8 +1,13 @@
-name: Build & test on any push
+name: Build invoicer on push, or PR to master
+
+env:
+  APP: invoicer
 
 on:
-  - push
-  - pull_request
+  push:
+    branches: [ 'master' ]
+  pull_request:
+    branches: [ 'master' ]
 
 jobs:
   build:
@@ -14,112 +19,66 @@ jobs:
       matrix:
         arch:
           - amd64
-          - arm64
           - arm32v6
           - arm32v7
-
-    env:
-      DOCKER_BUILDKIT: 1
-      APP: invoicer
-
-    steps:
-      - uses: actions/checkout@v1.0.0
-
-      - name: Setup environment
-        if: matrix.arch != 'amd64'
-        run: |
-          GOARCH="$(echo "${{matrix.arch}}" | grep -oE 'arm(64)?')"
-          echo ::set-env name=GOARCH::"${GOARCH}"
-
-          GOARM="$(echo "${{matrix.arch}}" | grep arm32 | tail -c 2)"
-          echo ::set-env name=GOARM::"${GOARM}"
-
-      - name: Build invoicer:${{matrix.arch}}
-        run: |
-          ARCH="${{matrix.arch}}"
-          if [[ "${{matrix.arch}}" == "arm64" ]]; then
-            ARCH="arm64v8"
-          fi
-
-          docker build --no-cache . \
-            --build-arg "ARCH=${ARCH}" \
-            --build-arg "GOARCH=${GOARCH}" \
-            --build-arg "GOARM=${GOARM}" \
-            --tag       "${APP}:${{matrix.arch}}"
-
-      - name: Show built image details
-        run: docker images "${APP}"
-
-      - name: Save image to a .tgz file
-        run: |
-          mkdir -p image/
-          docker save "${APP}:${{matrix.arch}}" | gzip > "image/${APP}-${{matrix.arch}}.tgz"
-
-      - name: Print sha256sum of produced Docker image
-        run: sha256sum "image/${APP}-${{matrix.arch}}.tgz"
-
-      - name: Add Docker image as build artifact
-        uses: actions/upload-artifact@v1.0.0
-        with:
-          name: docker-images
-          path: image/
-
-      - name: Extract binary from the built image
-        run: |
-          mkdir -p binary/
-          ID=$(docker create "${APP}:${{matrix.arch}}")
-          docker cp  "${ID}:/usr/local/bin/${APP}"  binary/
-          docker rm  "${ID}"
-          gzip -S "-${{matrix.arch}}.gz" binary/${APP}
-
-      - name: Print sha256sum of extracted binary
-        run: sha256sum binary/*
-
-      - name: Add raw binary as build artifact
-        uses: actions/upload-artifact@v1.0.0
-        with:
-          name: binaries
-          path: binary/
-
-  test:
-    name: Check sanity of images
-    runs-on: ubuntu-18.04
-    needs: build
+          - arm64v8
 
     env:
       QEMU_VERSION: v4.2.0
-      APP: invoicer
+      DOCKER_BUILDKIT: 1
 
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v1.0.0
-        with:
-          name: docker-images
+      - uses: actions/checkout@v2
 
-      - name: Print sha256sum of all Docker images
-        run: sha256sum docker-images/*
+      # GOARCH => arm|arm64
+      # GOARM  => 6|7
+      - name: Setup Go environment
+        if: matrix.arch != 'amd64'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          GOARCH="${ARCH%32v?}"
+          echo ::set-env name=GOARCH::"${GOARCH%v8}"
+          echo ::set-env name=GOARM::"$(echo "$ARCH" | sed -En 's|^arm32v([6-7])$|\1|p')"
+
+      - name: Build ${{ env.APP }}
+        run: >
+          docker build --no-cache . \
+            --build-arg "ARCH=${{ matrix.arch }}" \
+            --build-arg "GOARCH=$GOARCH" \
+            --build-arg "GOARM=$GOARM" \
+            --tag       "$APP"
+
+      - name: Show built image details
+        run: docker images "$APP"
 
       - name: Register self-compiled qemu
-        run: docker run --rm --privileged "meedamian/simple-qemu:${QEMU_VERSION}" -p yes
-
-      - name: Load all images locally
-        run: ls -d docker-images/* | xargs -I %  docker load -i "%"
-
-      - name: List all tagged images
-        run: docker images "${APP}"
+        if: matrix.arch != 'amd64'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: docker run --rm --privileged "meedamian/simple-qemu:$QEMU_VERSION-${ARCH%32v6}" -p yes
 
       - name: Run sanity checks
+        env:
+          DIR: /usr/local/bin
         run: |
-          for tag in $(docker images "${APP}" --format "{{.Tag}}"); do
-            echo
-            echo "~~~~~ ${APP}:${tag} ~~~~~"
-            docker inspect "${APP}:${tag}" | jq '.'
+          run() {
+            ENTRYPOINT="${1:-$APP}"; shift;
+            ARGS=${*:-"--version"}
 
-            docker run --rm                         "${APP}:${tag}" --version
+            printf "\n$ %s %s\n" "$ENTRYPOINT" "$ARGS"
+            docker run --rm  --entrypoint "$ENTRYPOINT"  "$APP"  $ARGS
+            printf "\n"
+          }
 
-            docker run --rm --entrypoint=uname      "${APP}:${tag}" -a
-            docker run --rm --entrypoint=cat        "${APP}:${tag}" /etc/os-release
-            docker run --rm --entrypoint=sha256sum  "${APP}:${tag}" /usr/local/bin/${APP}
+          docker inspect "$APP" | jq '.'
+          printf "\n"
 
-            docker run --rm --entrypoint=sh -u=root "${APP}:${tag}" -c "apk add --no-cache file && file /usr/local/bin/${APP}"
-          done
+          run invoicer
+
+          run uname -a
+          run cat /etc/os-release
+          run sha256sum "$DIR/invoicer"
+
+          docker run --rm --entrypoint=sh -u=root "$APP" -c "apk add --no-cache file && file $DIR/invoicer"
+

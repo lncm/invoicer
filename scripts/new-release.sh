@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+set -e
 
 #
 ## Given version, this script creates & pushes a relevant git-tag.
@@ -10,7 +10,7 @@ set -eo pipefail
 VERSION=$1
 
 # Make sure ${VERSION} is provided before proceeding
-if [[ -z "${VERSION}" ]]; then
+if [[ -z "$VERSION" ]]; then
   >&2 printf "\nERR: version missing:  version needs to be passed as the first argument.  Try:\n"
   >&2 printf "\t./%s  %s\n\n"   "$(basename "$0")"  "v0.7.2"
   exit 1
@@ -22,8 +22,8 @@ if [[ -n "$(git status --untracked-files=no --porcelain)" ]]; then
   exit 1
 fi
 
-# Make sure specified ${VERSION} is present in Dockerfile
-if ! grep -q "${VERSION}" "./Dockerfile" ; then
+# Make sure specified $VERSION is present in Dockerfile
+if ! grep -q "$VERSION" "./Dockerfile" ; then
   >&2 printf "\nERR: Requested version not present in Dockerfile. Make sure that's what you want to do.\n\n"
   exit 1
 fi
@@ -32,18 +32,18 @@ fi
 git fetch --tags
 
 # Get last build number
-LAST=$(git tag | grep '+build' | sed 's|^.*build||' | sort -h | tail -n 1)
+LAST="$(git tag | grep '+build' | sed 's|^.*build||' | sort -h | tail -n 1)"
 
 # Increment it
 ((LAST++))
 
-# Construct the full ${TAG}, ex: `v0.7.7+build666`
-TAG="${VERSION}+build${LAST}"
+# Construct the full $TAG, ex: `v0.7.7+build666`
+TAG="$VERSION+build$LAST"
 
-printf "Creating tag: %s…\t" "${TAG}"
-git tag -sa "${TAG}" -m "${TAG}"
+printf "Creating tag: %s…\t" "$TAG"
+git tag -sa "$TAG" -m "$TAG"
 echo "done"
 
-printf "Pushing tag: %s…\t" "${TAG}"
-git push origin "${TAG}"
+printf "Pushing tag: %s…\t" "$TAG"
+git push origin "$TAG"
 echo "All done"
