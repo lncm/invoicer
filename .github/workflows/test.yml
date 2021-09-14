@@ -2,6 +2,7 @@ name: Build invoicer on push, or PR to master
 
 env:
   APP: invoicer
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
 on:
   push:
