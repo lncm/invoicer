@@ -11,7 +11,7 @@ const (
 	DefaultConfigFile = DefaultConfigDir + "invoicer.conf"
 	DefaultLogFile    = DefaultConfigDir + "invoicer.log"
 
-	DefaultInvoiceExpiry = 180
+	DefaultInvoiceExpiry = 3600
 	MaxInvoiceDescLen    = 639
 )
 
