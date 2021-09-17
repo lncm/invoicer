@@ -85,12 +85,14 @@ Create `invoicer.conf` file in the directory you're in. See `invoicer.example.co
 Run:
 
 ```bash
+# Replace /path/to/lnd with your LND directory (where the macaroons live)
 docker run -it --rm \
     -v $(pwd)/:/data/ \
+    -v /path/to/lnd:/lnd/ \
     -p 8080:8080 \
     --name invoicer \
     --detach \
-    lncm/invoicer:v0.7.0
+    lncm/invoicer:v0.8.1
 ```
 
 
